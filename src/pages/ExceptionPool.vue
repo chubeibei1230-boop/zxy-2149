@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   AlertTriangle,
@@ -94,6 +94,32 @@ function handleDelete(exception: ExceptionRecord) {
 function handleSync() {
   store.syncCheckIssuesToExceptions()
 }
+
+watch(
+  () => [
+    store.exceptionFilter.type,
+    store.exceptionFilter.status,
+    store.exceptionFilter.severity,
+    store.exceptionFilter.assignee,
+    store.exceptionFilter.handler,
+    store.exceptionFilter.searchTitle,
+    store.exceptionFilter.startDate,
+    store.exceptionFilter.endDate,
+  ],
+  () => {
+    currentPage.value = 1
+  },
+)
+
+watch(
+  () => store.filteredExceptions.length,
+  (newLen) => {
+    const maxPage = Math.max(1, Math.ceil(newLen / pageSize))
+    if (currentPage.value > maxPage) {
+      currentPage.value = maxPage
+    }
+  },
+)
 </script>
 
 <template>
@@ -259,7 +285,7 @@ function handleSync() {
           </div>
         </div>
 
-        <button class="btn-secondary flex items-center justify-center gap-1.5 mt-auto" @click="store.clearExceptionFilter()">
+        <button class="btn-secondary flex items-center justify-center gap-1.5 mt-auto" @click="store.clearExceptionFilter(); currentPage = 1;">
           <X class="w-3.5 h-3.5" />
           <span>清空筛选</span>
         </button>

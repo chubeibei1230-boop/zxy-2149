@@ -42,6 +42,7 @@ const CHECK_ISSUE_TO_EXCEPTION_TYPE: Record<CheckIssueType, ExceptionType> = {
   'collected_no_batch': 'info_missing',
   'collected_missing_handover': 'handover_incomplete',
   'pending_has_handover': 'status_abnormal',
+  'appointment_no_show': 'appointment_no_show',
 }
 
 function createSeedLog(
@@ -1038,6 +1039,21 @@ export const useBadgeStore = defineStore('badge', () => {
       })
     }
 
+    const appointmentNoShowIds: string[] = []
+    for (const r of records.value) {
+      if (r.pickupStatus === '已逾期') {
+        appointmentNoShowIds.push(r.id)
+      }
+    }
+    if (appointmentNoShowIds.length > 0) {
+      issues.push({
+        type: 'appointment_no_show',
+        recordIds: appointmentNoShowIds,
+        message: `${appointmentNoShowIds.length} 条记录已预约但逾期未到场领取`,
+        severity: 'warning',
+      })
+    }
+
     return issues
   })
 
@@ -1141,6 +1157,24 @@ export const useBadgeStore = defineStore('badge', () => {
   function getRelatedRecord(exception: ExceptionRecord): BadgeRecord | undefined {
     if (!exception.relatedRecordId) return undefined
     return records.value.find((r) => r.id === exception.relatedRecordId)
+  }
+
+  function hasUnresolvedExceptionForIssue(recordId: string, checkIssueType: CheckIssueType): boolean {
+    return exceptions.value.some(
+      (e) =>
+        e.relatedRecordId === recordId &&
+        e.checkIssueType === checkIssueType &&
+        e.status !== 'resolved',
+    )
+  }
+
+  function getResolvedExceptionForIssue(recordId: string, checkIssueType: CheckIssueType): ExceptionRecord | undefined {
+    return exceptions.value.find(
+      (e) =>
+        e.relatedRecordId === recordId &&
+        e.checkIssueType === checkIssueType &&
+        e.status === 'resolved',
+    )
   }
 
   function createException(data: {
@@ -1679,6 +1713,7 @@ export const useBadgeStore = defineStore('badge', () => {
     if (oldRecord.pickupStatus !== '已预约') return
     const now = new Date().toISOString()
     const newPickupStatus: PickupStatus = '已逾期'
+    const op = operator || oldRecord.responsiblePerson || DEFAULT_OPERATOR
 
     records.value[idx] = {
       ...oldRecord,
@@ -1692,13 +1727,30 @@ export const useBadgeStore = defineStore('badge', () => {
           nodeType: oldRecord.currentNode,
           previousStatus: oldRecord.status,
           newStatus: oldRecord.status,
-          operator: operator || oldRecord.responsiblePerson || DEFAULT_OPERATOR,
+          operator: op,
           reason: `预约领取时间已过（${oldRecord.appointment ? formatDateTime(oldRecord.appointment.scheduledTime) : '-'}），标记逾期`,
           fieldChanges: {
             '领取预约状态': { old: oldRecord.pickupStatus, new: newPickupStatus },
           },
         }),
       ],
+    }
+
+    const existingOverdueException = exceptions.value.find(
+      (e) =>
+        e.relatedRecordId === id &&
+        e.type === 'appointment_no_show' &&
+        e.status !== 'resolved',
+    )
+    if (!existingOverdueException) {
+      createException({
+        type: 'appointment_no_show',
+        severity: 'warning',
+        title: `已预约未到场：${oldRecord.name}`,
+        description: `预约领取时间为 ${oldRecord.appointment ? formatDateTime(oldRecord.appointment.scheduledTime) : '-'}，现已逾期未领取。参会类型：${oldRecord.attendeeType}，公司：${oldRecord.company}。`,
+        relatedRecordId: id,
+        checkIssueType: 'appointment_no_show',
+      })
     }
   }
 
@@ -1974,15 +2026,22 @@ export const useBadgeStore = defineStore('badge', () => {
   }
 
   function getRecordAlerts(record: BadgeRecord) {
-    const alerts: { type: 'error' | 'warning' | 'success'; message: string }[] = []
+    const alerts: { type: 'error' | 'warning' | 'success'; message: string; resolved?: boolean }[] = []
 
     if (record.status === '已领取') {
-      alerts.push({
-        type: 'success',
-        message: record.handover
-          ? `已由 ${record.handover.receiverName} 于 ${formatDateTime(record.handover.receivedAt)} 领取`
-          : '状态异常：已领取但无交接信息',
-      })
+      if (record.handover) {
+        alerts.push({
+          type: 'success',
+          message: `已由 ${record.handover.receiverName} 于 ${formatDateTime(record.handover.receivedAt)} 领取`,
+        })
+      } else {
+        const resolved = getResolvedExceptionForIssue(record.id, 'collected_missing_handover')
+        alerts.push({
+          type: 'error',
+          message: '状态异常：已领取但无交接信息',
+          resolved: !!resolved,
+        })
+      }
     }
 
     if (record.status === '需重做') {
@@ -1996,30 +2055,38 @@ export const useBadgeStore = defineStore('badge', () => {
     }
 
     if (record.status === '待领取' && !record.printBatch) {
+      const resolved = getResolvedExceptionForIssue(record.id, 'collected_no_batch')
       alerts.push({
         type: 'warning',
         message: '信息不完整：未分配打印批次',
+        resolved: !!resolved,
       })
     }
 
     if (record.status === '待领取' && !record.responsiblePerson) {
+      const resolved = getResolvedExceptionForIssue(record.id, 'missing_responsible')
       alerts.push({
         type: 'warning',
         message: '信息不完整：未指定负责人',
+        resolved: !!resolved,
       })
     }
 
     if (record.status !== '已领取' && record.handover) {
+      const resolved = getResolvedExceptionForIssue(record.id, 'pending_has_handover')
       alerts.push({
         type: 'warning',
         message: '状态异常：未领取但已填写交接信息',
+        resolved: !!resolved,
       })
     }
 
     if (record.status === '已领取' && !record.handover) {
+      const resolved = getResolvedExceptionForIssue(record.id, 'collected_missing_handover')
       alerts.push({
         type: 'error',
         message: '状态异常：已领取但缺少交接信息',
+        resolved: !!resolved,
       })
     }
 
@@ -2031,10 +2098,12 @@ export const useBadgeStore = defineStore('badge', () => {
     }
 
     if (record.pickupStatus === '已逾期') {
+      const resolved = getResolvedExceptionForIssue(record.id, 'appointment_no_show')
       const overdueTime = record.appointment ? formatDateTime(record.appointment.scheduledTime) : '-'
       alerts.push({
         type: 'warning',
         message: `预约逾期：预约领取时间 ${overdueTime} 已过，请安排补领或重新预约`,
+        resolved: !!resolved,
       })
     }
 
@@ -2045,7 +2114,7 @@ export const useBadgeStore = defineStore('badge', () => {
       })
     }
 
-    return alerts
+    return alerts.filter((a) => !a.resolved)
   }
 
   function getLatestSummary(record: BadgeRecord) {
@@ -2087,6 +2156,8 @@ export const useBadgeStore = defineStore('badge', () => {
     getRecordById,
     getExceptionById,
     getRelatedRecord,
+    hasUnresolvedExceptionForIssue,
+    getResolvedExceptionForIssue,
     addRecord,
     updateRecord,
     deleteRecord,

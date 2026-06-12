@@ -147,15 +147,22 @@ function getStatusIcon(status: BadgeStatus) {
 }
 
 function getRecordAlert(record: BadgeRecord) {
-  const alerts: { type: 'error' | 'warning' | 'success'; message: string }[] = []
+  const alerts: { type: 'error' | 'warning' | 'success'; message: string; resolved?: boolean }[] = []
 
   if (record.status === '已领取') {
-    alerts.push({
-      type: 'success',
-      message: record.handover
-        ? `已由 ${record.handover.receiverName} 于 ${store.formatDateTime(record.handover.receivedAt)} 领取`
-        : '状态异常：已领取但无交接信息',
-    })
+    if (record.handover) {
+      alerts.push({
+        type: 'success',
+        message: `已由 ${record.handover.receiverName} 于 ${store.formatDateTime(record.handover.receivedAt)} 领取`,
+      })
+    } else {
+      const resolved = store.getResolvedExceptionForIssue(record.id, 'collected_missing_handover')
+      alerts.push({
+        type: 'error',
+        message: '状态异常：已领取但无交接信息',
+        resolved: !!resolved,
+      })
+    }
   }
 
   if (record.status === '需重做') {
@@ -169,34 +176,51 @@ function getRecordAlert(record: BadgeRecord) {
   }
 
   if (record.status === '待领取' && !record.printBatch) {
+    const resolved = store.getResolvedExceptionForIssue(record.id, 'collected_no_batch')
     alerts.push({
       type: 'warning',
       message: '信息不完整：未分配打印批次',
+      resolved: !!resolved,
     })
   }
 
   if (record.status === '待领取' && !record.responsiblePerson) {
+    const resolved = store.getResolvedExceptionForIssue(record.id, 'missing_responsible')
     alerts.push({
       type: 'warning',
       message: '信息不完整：未指定负责人',
+      resolved: !!resolved,
     })
   }
 
   if (record.status !== '已领取' && record.handover) {
+    const resolved = store.getResolvedExceptionForIssue(record.id, 'pending_has_handover')
     alerts.push({
       type: 'warning',
       message: '状态异常：未领取但已填写交接信息',
+      resolved: !!resolved,
     })
   }
 
   if (record.status === '已领取' && !record.handover) {
+    const resolved = store.getResolvedExceptionForIssue(record.id, 'collected_missing_handover')
     alerts.push({
       type: 'error',
       message: '状态异常：已领取但缺少交接信息',
+      resolved: !!resolved,
     })
   }
 
-  return alerts
+  if (record.pickupStatus === '已逾期') {
+    const resolved = store.getResolvedExceptionForIssue(record.id, 'appointment_no_show')
+    alerts.push({
+      type: 'warning',
+      message: `已预约未到场：预约时间 ${record.appointment ? store.formatDateTime(record.appointment.scheduledTime) : '-'}`,
+      resolved: !!resolved,
+    })
+  }
+
+  return alerts.filter((a) => !a.resolved)
 }
 
 function getLatestSummary(record: BadgeRecord) {

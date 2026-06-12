@@ -153,7 +153,7 @@ export interface BadgeRecord {
   currentNode: ProgressNodeType
 }
 
-export type CheckIssueType = 'duplicate_name' | 'batch_color_mismatch' | 'missing_responsible' | 'collected_no_batch' | 'collected_missing_handover' | 'pending_has_handover'
+export type CheckIssueType = 'duplicate_name' | 'batch_color_mismatch' | 'missing_responsible' | 'collected_no_batch' | 'collected_missing_handover' | 'pending_has_handover' | 'appointment_no_show'
 
 export interface CheckIssue {
   type: CheckIssueType

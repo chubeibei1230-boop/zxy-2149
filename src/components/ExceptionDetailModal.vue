@@ -51,18 +51,22 @@ const activeTab = ref<'info' | 'traces'>('info')
 const assignForm = ref({ assignee: '', note: '' })
 const resolveForm = ref({ resolutionNote: '' })
 const reopenForm = ref({ note: '' })
+const noteForm = ref({ note: '' })
 const showAssignForm = ref(false)
 const showResolveForm = ref(false)
 const showReopenForm = ref(false)
+const showNoteForm = ref(false)
 
 watch(() => props.visible, (val) => {
   if (val) {
     showAssignForm.value = false
     showResolveForm.value = false
     showReopenForm.value = false
+    showNoteForm.value = false
     assignForm.value = { assignee: '', note: '' }
     resolveForm.value = { resolutionNote: '' }
     reopenForm.value = { note: '' }
+    noteForm.value = { note: '' }
     activeTab.value = 'info'
   }
 })
@@ -106,6 +110,16 @@ function handleReopen() {
   )
   showReopenForm.value = false
   reopenForm.value = { note: '' }
+}
+
+function handleUpdateNote() {
+  if (!exception.value || !noteForm.value.note.trim()) return
+  store.updateExceptionNote(
+    exception.value.id,
+    noteForm.value.note.trim(),
+  )
+  showNoteForm.value = false
+  noteForm.value = { note: '' }
 }
 
 const actionTraceLabels: Record<string, string> = {
@@ -372,6 +386,34 @@ const actionTraceLabels: Record<string, string> = {
                 </div>
               </div>
             </div>
+
+            <div v-if="showNoteForm" class="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-4">
+              <div class="text-sm font-semibold text-blue-700 flex items-center gap-1.5">
+                <MessageSquare class="w-4 h-4" />
+                补充处理说明
+              </div>
+              <div class="space-y-3">
+                <div class="space-y-1">
+                  <label class="text-xs font-medium text-slate-500">处理说明 *</label>
+                  <textarea
+                    v-model="noteForm.note"
+                    placeholder="请输入处理说明，记录当前处理进展或相关信息"
+                    rows="3"
+                    class="input-field text-sm resize-none"
+                  />
+                </div>
+                <div class="flex justify-end gap-2">
+                  <button class="btn-secondary text-sm" @click="showNoteForm = false">取消</button>
+                  <button
+                    class="btn-primary text-sm"
+                    :disabled="!noteForm.note.trim()"
+                    @click="handleUpdateNote"
+                  >
+                    确认保存
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div v-else-if="activeTab === 'traces'" class="p-6">
@@ -437,15 +479,23 @@ const actionTraceLabels: Record<string, string> = {
             <button
               v-if="exception.status !== 'resolved'"
               class="btn-secondary text-sm flex items-center gap-1.5"
-              @click="showAssignForm = !showAssignForm; showResolveForm = false; showReopenForm = false"
+              @click="showAssignForm = !showAssignForm; showResolveForm = false; showReopenForm = false; showNoteForm = false"
             >
               <UserPlus class="w-4 h-4" />
               指派处理人
             </button>
             <button
               v-if="exception.status !== 'resolved'"
+              class="btn-secondary text-sm flex items-center gap-1.5"
+              @click="showNoteForm = !showNoteForm; showAssignForm = false; showResolveForm = false; showReopenForm = false"
+            >
+              <MessageSquare class="w-4 h-4" />
+              补充说明
+            </button>
+            <button
+              v-if="exception.status !== 'resolved'"
               class="btn-primary text-sm flex items-center gap-1.5"
-              @click="showResolveForm = !showResolveForm; showAssignForm = false; showReopenForm = false"
+              @click="showResolveForm = !showResolveForm; showAssignForm = false; showReopenForm = false; showNoteForm = false"
             >
               <CheckCircle class="w-4 h-4" />
               标记已解决
@@ -453,7 +503,7 @@ const actionTraceLabels: Record<string, string> = {
             <button
               v-if="exception.status === 'resolved'"
               class="btn-danger text-sm flex items-center gap-1.5"
-              @click="showReopenForm = !showReopenForm; showAssignForm = false; showResolveForm = false"
+              @click="showReopenForm = !showReopenForm; showAssignForm = false; showResolveForm = false; showNoteForm = false"
             >
               <RefreshCw class="w-4 h-4" />
               重新打开
