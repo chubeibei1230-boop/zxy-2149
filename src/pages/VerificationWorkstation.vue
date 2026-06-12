@@ -58,44 +58,44 @@ const showAppointmentDetail = ref(false)
 const appointmentDetailRecord = ref<BadgeRecord | null>(null)
 
 const searchResults = computed(() => {
+  const pickupPriority: Record<string, number> = {
+    '已预约': 0,
+    '已逾期': 1,
+    '已补领': 2,
+    '未预约': 3,
+    '已领取': 4,
+  }
+  const statusPriority: Record<BadgeStatus, number> = {
+    '待领取': 0,
+    '已领取': 1,
+    '需重做': 2,
+    '待打印': 3,
+    '待设计': 4,
+  }
   const hasSearch = searchForm.name || searchForm.company || searchForm.printBatch || searchForm.badgeColor
+
+  let results: BadgeRecord[]
   if (!hasSearch) {
-    return store.records
-      .filter((r) => r.status === '待领取')
-      .sort((a, b) => a.name.localeCompare(b.name))
+    results = store.records.filter((r) => r.status === '待领取')
+  } else {
+    results = store.records.filter((r) => {
+      if (searchForm.name && !r.name.toLowerCase().includes(searchForm.name.toLowerCase())) {
+        return false
+      }
+      if (searchForm.company && !r.company.toLowerCase().includes(searchForm.company.toLowerCase())) {
+        return false
+      }
+      if (searchForm.printBatch && r.printBatch !== searchForm.printBatch) {
+        return false
+      }
+      if (searchForm.badgeColor && r.badgeColor !== searchForm.badgeColor) {
+        return false
+      }
+      return true
+    })
   }
 
-  const results = store.records.filter((r) => {
-    if (searchForm.name && !r.name.toLowerCase().includes(searchForm.name.toLowerCase())) {
-      return false
-    }
-    if (searchForm.company && !r.company.toLowerCase().includes(searchForm.company.toLowerCase())) {
-      return false
-    }
-    if (searchForm.printBatch && r.printBatch !== searchForm.printBatch) {
-      return false
-    }
-    if (searchForm.badgeColor && r.badgeColor !== searchForm.badgeColor) {
-      return false
-    }
-    return true
-  })
-
   return results.sort((a, b) => {
-    const pickupPriority: Record<string, number> = {
-      '已预约': 0,
-      '已逾期': 1,
-      '已补领': 2,
-      '未预约': 3,
-      '已领取': 4,
-    }
-    const statusPriority: Record<BadgeStatus, number> = {
-      '待领取': 0,
-      '已领取': 1,
-      '需重做': 2,
-      '待打印': 3,
-      '待设计': 4,
-    }
     const prioA = statusPriority[a.status] ?? 5
     const prioB = statusPriority[b.status] ?? 5
     if (prioA !== prioB) return prioA - prioB

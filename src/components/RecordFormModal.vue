@@ -93,7 +93,7 @@ const validationErrors = computed(() => {
 
 function handleSave() {
   if (!isFormValid.value) return
-  const saveData: Omit<BadgeRecord, 'id' | 'createdAt' | 'updatedAt' | 'progressLogs' | 'currentNode'> = {
+  const saveData: any = {
     name: form.name,
     company: form.company,
     attendeeType: form.attendeeType as AttendeeType,

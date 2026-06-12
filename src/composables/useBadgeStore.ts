@@ -49,7 +49,7 @@ function createSeedLog(
   }
 }
 
-const SEED_DATA: BadgeRecord[] = [
+const SEED_DATA: any[] = [
   {
     id: 'seed1',
     name: '张伟',
@@ -593,7 +593,7 @@ function loadRecords(): BadgeRecord[] {
       }
     }
   } catch {}
-  return [...SEED_DATA]
+  return SEED_DATA.map(migrateRecord)
 }
 
 function saveRecords(records: BadgeRecord[]) {
@@ -970,7 +970,7 @@ export const useBadgeStore = defineStore('badge', () => {
     return records.value.find((r) => r.id === id)
   }
 
-  function addRecord(data: Omit<BadgeRecord, 'id' | 'createdAt' | 'updatedAt' | 'progressLogs' | 'currentNode'>) {
+  function addRecord(data: any) {
     const now = new Date().toISOString()
     const initialStatus: BadgeStatus = data.status || '待设计'
     const initialNode: ProgressNodeType = STATUS_TO_PROGRESS_MAP[initialStatus]
@@ -1362,25 +1362,38 @@ export const useBadgeStore = defineStore('badge', () => {
       operator: reissueData.operator.trim(),
       createdAt: now,
     }
+    const handover: HandoverInfo = {
+      receiverName: reissueData.actualReceiver.trim(),
+      receivedAt: now,
+      handoverMethod: reissueData.reason.trim() === '他人临时代领' ? '他人代领' : '当面领取',
+      handler: reissueData.handler.trim(),
+      handoverNotes: `补领原因：${reissueData.reason}${reissueData.processNotes ? ` · 处理说明：${reissueData.processNotes}` : ''}`,
+    }
     const newPickupStatus: PickupStatus = '已补领'
+    const newStatus: BadgeStatus = '已领取'
 
     records.value[idx] = {
       ...oldRecord,
       reissue,
+      handover,
       pickupStatus: newPickupStatus,
+      status: newStatus,
+      currentNode: '领取交接',
       updatedAt: now,
       progressLogs: [
         ...oldRecord.progressLogs,
         createProgressLog({
           recordId: id,
           operationType: 'register_reissue',
-          nodeType: oldRecord.currentNode,
+          nodeType: '领取交接',
           previousStatus: oldRecord.status,
-          newStatus: oldRecord.status,
+          newStatus: newStatus,
           operator: reissueData.operator.trim(),
           reason: `补领/代领：${reissueData.reason}，实际领取人：${reissueData.actualReceiver}`,
           reissueInfo: reissue,
+          handoverInfo: handover,
           fieldChanges: {
+            '胸卡状态': { old: oldRecord.status, new: newStatus },
             '领取预约状态': { old: oldRecord.pickupStatus, new: newPickupStatus },
             '补领原因': { old: null, new: reissueData.reason },
             '实际领取人': { old: null, new: reissueData.actualReceiver },
@@ -1392,6 +1405,7 @@ export const useBadgeStore = defineStore('badge', () => {
 
   function checkOverdueAppointments() {
     const now = new Date()
+    const nowIso = now.toISOString()
     for (let i = 0; i < records.value.length; i++) {
       const r = records.value[i]
       if (r.pickupStatus === '已预约' && r.appointment) {
@@ -1400,6 +1414,22 @@ export const useBadgeStore = defineStore('badge', () => {
           records.value[i] = {
             ...r,
             pickupStatus: '已逾期',
+            updatedAt: nowIso,
+            progressLogs: [
+              ...r.progressLogs,
+              createProgressLog({
+                recordId: r.id,
+                operationType: 'mark_overdue',
+                nodeType: r.currentNode,
+                previousStatus: r.status,
+                newStatus: r.status,
+                operator: DEFAULT_OPERATOR,
+                reason: `预约时间 ${formatDateTime(r.appointment.scheduledTime)} 已过，系统自动标记为逾期`,
+                fieldChanges: {
+                  '领取预约状态': { old: '已预约', new: '已逾期' },
+                },
+              }),
+            ],
           }
         }
       }
@@ -1661,6 +1691,8 @@ export const useBadgeStore = defineStore('badge', () => {
     const latest = logs[0]
     return `${latest.operator} · ${formatDateTime(latest.operatedAt)} · ${latest.operationLabel}${latest.reason ? ' · ' + latest.reason : ''}`
   }
+
+  checkOverdueAppointments()
 
   return {
     records,
