@@ -3,6 +3,7 @@ import { ref, computed, watch, nextTick, toRefs } from 'vue'
 import { useBadgeStore } from '@/composables/useBadgeStore'
 import type { BadgeRecord } from '@/types'
 import StatsBar from '@/components/StatsBar.vue'
+import ExceptionSummary from '@/components/ExceptionSummary.vue'
 import FilterPanel from '@/components/FilterPanel.vue'
 import CheckPanel from '@/components/CheckPanel.vue'
 import BadgeCardGroup from '@/components/BadgeCardGroup.vue'
@@ -16,8 +17,9 @@ import LedgerPanel from '@/components/LedgerPanel.vue'
 import AppointmentModal from '@/components/AppointmentModal.vue'
 import ReissueModal from '@/components/ReissueModal.vue'
 import AppointmentDetailModal from '@/components/AppointmentDetailModal.vue'
+import ExceptionDetailModal from '@/components/ExceptionDetailModal.vue'
 import { useRouter } from 'vue-router'
-import { Plus, LayoutGrid, Package, Search, Handshake, GitBranch, BookOpen, QrCode, CalendarClock, ClipboardCheck } from 'lucide-vue-next'
+import { Plus, LayoutGrid, Package, Search, Handshake, GitBranch, BookOpen, QrCode, CalendarClock, ClipboardCheck, AlertTriangle } from 'lucide-vue-next'
 
 const router = useRouter()
 const store = useBadgeStore()
@@ -44,6 +46,9 @@ const showReissueModal = ref(false)
 const reissueRecord = ref<BadgeRecord | null>(null)
 const showAppointmentDetail = ref(false)
 const appointmentDetailRecord = ref<BadgeRecord | null>(null)
+
+const showExceptionDetail = ref(false)
+const exceptionDetailId = ref<string | null>(null)
 
 const colorOrder = ['红色', '蓝色', '绿色', '黄色', '紫色', '橙色', '灰色']
 
@@ -176,6 +181,10 @@ function handleRegisterReissue(record: BadgeRecord) {
 function handleLedgerViewRecord(id: string) {
   handleViewProgress(id)
 }
+
+function handleExceptionViewRecord(recordId: string) {
+  handleViewProgress(recordId)
+}
 </script>
 
 <template>
@@ -223,6 +232,22 @@ function handleLedgerViewRecord(id: string) {
             操作台账
           </button>
           <button
+            class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+            :class="store.exceptionStats.unresolved > 0
+              ? 'bg-red-100 text-red-700 hover:bg-red-200'
+              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+            @click="router.push('/exceptions')"
+          >
+            <AlertTriangle class="w-4 h-4" />
+            异常处理
+            <span
+              v-if="store.exceptionStats.unresolved > 0"
+              class="ml-1 px-1.5 py-0.5 bg-red-500 text-white text-xs font-medium rounded-full leading-none"
+            >
+              {{ store.exceptionStats.unresolved }}
+            </span>
+          </button>
+          <button
             class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
             @click="router.push('/verification')"
           >
@@ -238,6 +263,9 @@ function handleLedgerViewRecord(id: string) {
       </div>
       <div class="mt-3">
         <StatsBar />
+      </div>
+      <div class="mt-3" v-if="store.exceptions.length > 0">
+        <ExceptionSummary />
       </div>
     </header>
 
@@ -334,6 +362,13 @@ function handleLedgerViewRecord(id: string) {
       @cancel-appointment="handleCancelAppointment"
       @register-reissue="showAppointmentDetail = false; appointmentDetailRecord = null; handleRegisterReissue($event)"
       @mark-overdue="handleMarkOverdue"
+    />
+
+    <ExceptionDetailModal
+      :visible="showExceptionDetail"
+      :exception-id="exceptionDetailId"
+      @close="showExceptionDetail = false; exceptionDetailId = null"
+      @view-record="handleExceptionViewRecord"
     />
   </div>
 </template>

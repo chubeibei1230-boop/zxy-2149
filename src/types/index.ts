@@ -162,6 +162,87 @@ export interface CheckIssue {
   severity: 'warning' | 'error'
 }
 
+export type ExceptionType =
+  | 'status_abnormal'
+  | 'info_missing'
+  | 'duplicate_person'
+  | 'appointment_no_show'
+  | 'handover_incomplete'
+  | 'other'
+
+export const EXCEPTION_TYPE_LIST: ExceptionType[] = [
+  'status_abnormal',
+  'info_missing',
+  'duplicate_person',
+  'appointment_no_show',
+  'handover_incomplete',
+  'other',
+]
+
+export const EXCEPTION_TYPE_LABEL_MAP: Record<ExceptionType, string> = {
+  'status_abnormal': '状态异常',
+  'info_missing': '信息缺失',
+  'duplicate_person': '重复人员',
+  'appointment_no_show': '已预约未到场',
+  'handover_incomplete': '已领取交接信息不完整',
+  'other': '其他异常',
+}
+
+export const EXCEPTION_TYPE_COLOR_MAP: Record<ExceptionType, string> = {
+  'status_abnormal': '#EF4444',
+  'info_missing': '#F59E0B',
+  'duplicate_person': '#F59E0B',
+  'appointment_no_show': '#8B5CF6',
+  'handover_incomplete': '#EF4444',
+  'other': '#6B7280',
+}
+
+export type ExceptionStatus = 'pending' | 'processing' | 'resolved' | 'reopened'
+
+export const EXCEPTION_STATUS_LIST: ExceptionStatus[] = ['pending', 'processing', 'resolved', 'reopened']
+
+export const EXCEPTION_STATUS_LABEL_MAP: Record<ExceptionStatus, string> = {
+  'pending': '待处理',
+  'processing': '处理中',
+  'resolved': '已解决',
+  'reopened': '重新打开',
+}
+
+export const EXCEPTION_STATUS_COLOR_MAP: Record<ExceptionStatus, string> = {
+  'pending': '#F59E0B',
+  'processing': '#3B82F6',
+  'resolved': '#22C55E',
+  'reopened': '#EF4444',
+}
+
+export interface ExceptionTrace {
+  id: string
+  exceptionId: string
+  action: 'assign' | 'update_note' | 'resolve' | 'reopen' | 'create'
+  operator: string
+  operatedAt: string
+  note: string
+  assignee?: string
+}
+
+export interface ExceptionRecord {
+  id: string
+  type: ExceptionType
+  status: ExceptionStatus
+  severity: 'warning' | 'error'
+  title: string
+  description: string
+  relatedRecordId: string | null
+  assignee: string | null
+  handler: string | null
+  processingNote: string
+  resolutionNote: string
+  createdAt: string
+  updatedAt: string
+  traces: ExceptionTrace[]
+  checkIssueType?: CheckIssueType
+}
+
 export interface LedgerFilterState {
   searchPerson: string
   printBatch: string
@@ -172,6 +253,28 @@ export interface LedgerFilterState {
   startDate: string
   endDate: string
   onlyException: boolean
+}
+
+export interface ExceptionFilterState {
+  type: ExceptionType | ''
+  status: ExceptionStatus | ''
+  assignee: string
+  handler: string
+  searchTitle: string
+  startDate: string
+  endDate: string
+  severity: '' | 'warning' | 'error'
+}
+
+export const DEFAULT_EXCEPTION_FILTER: ExceptionFilterState = {
+  type: '',
+  status: '',
+  assignee: '',
+  handler: '',
+  searchTitle: '',
+  startDate: '',
+  endDate: '',
+  severity: '',
 }
 
 export interface FilterState {
@@ -188,6 +291,7 @@ export interface FilterState {
   handoverEndDate: string
   pickupStatus: string
   ledgerFilter: LedgerFilterState
+  exceptionFilter: ExceptionFilterState
 }
 
 export const STATUS_LIST: BadgeStatus[] = ['待设计', '待打印', '待领取', '已领取', '需重做']

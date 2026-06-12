@@ -114,6 +114,18 @@ const quickStats = computed(() => {
   return { pending, collected, redo, total }
 })
 
+function hasUnresolvedException(recordId: string): boolean {
+  return store.exceptions.some(
+    (e) => e.relatedRecordId === recordId && e.status !== 'resolved',
+  )
+}
+
+function getRecordExceptions(recordId: string) {
+  return store.exceptions.filter(
+    (e) => e.relatedRecordId === recordId && e.status !== 'resolved',
+  )
+}
+
 function clearSearch() {
   searchForm.name = ''
   searchForm.company = ''
@@ -427,6 +439,13 @@ function goBack() {
                           <AlertTriangle v-else-if="record.pickupStatus === '已逾期'" class="w-3 h-3" />
                           <ClipboardCheck v-else-if="record.pickupStatus === '已补领'" class="w-3 h-3" />
                           {{ record.pickupStatus }}
+                        </span>
+                        <span
+                          v-if="hasUnresolvedException(record.id)"
+                          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 border border-red-200"
+                        >
+                          <AlertTriangle class="w-3 h-3" />
+                          存在异常 ({{ getRecordExceptions(record.id).length }})
                         </span>
                         <span
                           class="inline-flex items-center gap-1 text-xs bg-slate-100 text-slate-600 rounded px-1.5 py-0.5"

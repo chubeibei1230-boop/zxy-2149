@@ -14,16 +14,35 @@ import type {
   PickupReissue,
   PickupStatus,
   PickupMethod,
+  ExceptionRecord,
+  ExceptionType,
+  ExceptionStatus,
+  ExceptionTrace,
+  ExceptionFilterState,
+  CheckIssueType,
 } from '@/types'
 import {
   generateId,
   STATUS_TO_PROGRESS_MAP,
   OPERATION_TYPE_LABELS,
   PROGRESS_NODE_LIST,
+  DEFAULT_EXCEPTION_FILTER,
+  EXCEPTION_TYPE_LABEL_MAP,
+  EXCEPTION_STATUS_LABEL_MAP,
 } from '@/types'
 
 const STORAGE_KEY = 'badge-checklist-records'
+const EXCEPTION_STORAGE_KEY = 'badge-exception-records'
 const DEFAULT_OPERATOR = '系统管理员'
+
+const CHECK_ISSUE_TO_EXCEPTION_TYPE: Record<CheckIssueType, ExceptionType> = {
+  'duplicate_name': 'duplicate_person',
+  'batch_color_mismatch': 'status_abnormal',
+  'missing_responsible': 'info_missing',
+  'collected_no_batch': 'info_missing',
+  'collected_missing_handover': 'handover_incomplete',
+  'pending_has_handover': 'status_abnormal',
+}
 
 function createSeedLog(
   recordId: string,
@@ -657,11 +676,66 @@ function diffFields(
   return changes
 }
 
+function loadExceptions(): ExceptionRecord[] {
+  try {
+    const raw = localStorage.getItem(EXCEPTION_STORAGE_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed)) {
+        return parsed
+      }
+    }
+  } catch {}
+  return []
+}
+
+function saveExceptions(exceptions: ExceptionRecord[]) {
+  localStorage.setItem(EXCEPTION_STORAGE_KEY, JSON.stringify(exceptions))
+}
+
+function createExceptionTrace(params: {
+  exceptionId: string
+  action: 'assign' | 'update_note' | 'resolve' | 'reopen' | 'create'
+  operator: string
+  note: string
+  assignee?: string
+}): ExceptionTrace {
+  return {
+    id: generateId(),
+    exceptionId: params.exceptionId,
+    action: params.action,
+    operator: params.operator,
+    operatedAt: new Date().toISOString(),
+    note: params.note,
+    assignee: params.assignee,
+  }
+}
+
+function mapCheckIssueToException(
+  issue: CheckIssue,
+  record: BadgeRecord,
+): Partial<ExceptionRecord> {
+  const type = CHECK_ISSUE_TO_EXCEPTION_TYPE[issue.type]
+  return {
+    type,
+    severity: issue.severity,
+    title: EXCEPTION_TYPE_LABEL_MAP[type],
+    description: issue.message,
+    relatedRecordId: record.id,
+    checkIssueType: issue.type,
+  }
+}
+
 export const useBadgeStore = defineStore('badge', () => {
   const records = ref<BadgeRecord[]>(loadRecords())
+  const exceptions = ref<ExceptionRecord[]>(loadExceptions())
 
   watch(records, (val) => {
     saveRecords(val)
+  }, { deep: true })
+
+  watch(exceptions, (val) => {
+    saveExceptions(val)
   }, { deep: true })
 
   const ledgerFilter = ref<LedgerFilterState>({
@@ -675,6 +749,8 @@ export const useBadgeStore = defineStore('badge', () => {
     endDate: '',
     onlyException: false,
   })
+
+  const exceptionFilter = ref<ExceptionFilterState>({ ...DEFAULT_EXCEPTION_FILTER })
 
   const filter = ref<FilterState>({
     attendeeType: '',
@@ -690,6 +766,7 @@ export const useBadgeStore = defineStore('badge', () => {
     handoverEndDate: '',
     pickupStatus: '',
     ledgerFilter: ledgerFilter.value,
+    exceptionFilter: exceptionFilter.value,
   })
 
   const selectedIds = ref<Set<string>>(new Set())
@@ -965,6 +1042,292 @@ export const useBadgeStore = defineStore('badge', () => {
   })
 
   const issueCount = computed(() => checks.value.length)
+
+  const allAssignees = computed(() => {
+    const assignees = new Set<string>()
+    for (const e of exceptions.value) {
+      if (e.assignee) assignees.add(e.assignee)
+    }
+    return Array.from(assignees).sort()
+  })
+
+  const allExceptionHandlers = computed(() => {
+    const handlers = new Set<string>()
+    for (const e of exceptions.value) {
+      if (e.handler) handlers.add(e.handler)
+    }
+    return Array.from(handlers).sort()
+  })
+
+  const filteredExceptions = computed(() => {
+    return exceptions.value.filter((e) => {
+      if (exceptionFilter.value.type && e.type !== exceptionFilter.value.type) return false
+      if (exceptionFilter.value.status && e.status !== exceptionFilter.value.status) return false
+      if (exceptionFilter.value.severity && e.severity !== exceptionFilter.value.severity) return false
+      if (exceptionFilter.value.assignee === '__empty__') {
+        if (e.assignee) return false
+      } else if (exceptionFilter.value.assignee && e.assignee !== exceptionFilter.value.assignee) {
+        return false
+      }
+      if (exceptionFilter.value.handler === '__empty__') {
+        if (e.handler) return false
+      } else if (exceptionFilter.value.handler && e.handler !== exceptionFilter.value.handler) {
+        return false
+      }
+      if (exceptionFilter.value.searchTitle) {
+        const search = exceptionFilter.value.searchTitle.toLowerCase()
+        if (
+          !e.title.toLowerCase().includes(search) &&
+          !e.description.toLowerCase().includes(search)
+        ) {
+          return false
+        }
+      }
+      if (exceptionFilter.value.startDate) {
+        const start = new Date(exceptionFilter.value.startDate)
+        start.setHours(0, 0, 0, 0)
+        const created = new Date(e.createdAt)
+        created.setHours(0, 0, 0, 0)
+        if (created < start) return false
+      }
+      if (exceptionFilter.value.endDate) {
+        const end = new Date(exceptionFilter.value.endDate)
+        end.setHours(23, 59, 59, 999)
+        const created = new Date(e.createdAt)
+        created.setHours(0, 0, 0, 0)
+        if (created > end) return false
+      }
+      return true
+    }).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+  })
+
+  const exceptionStats = computed(() => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const todayIso = today.toISOString()
+
+    const unresolved = exceptions.value.filter((e) => e.status !== 'resolved').length
+    const todayNew = exceptions.value.filter((e) => {
+      const created = new Date(e.createdAt)
+      created.setHours(0, 0, 0, 0)
+      return created.getTime() === today.getTime()
+    }).length
+    const resolved = exceptions.value.filter((e) => e.status === 'resolved').length
+    const processing = exceptions.value.filter((e) => e.status === 'processing').length
+    const pending = exceptions.value.filter((e) => e.status === 'pending').length
+    const reopened = exceptions.value.filter((e) => e.status === 'reopened').length
+
+    const byType: Record<string, number> = {}
+    for (const e of exceptions.value) {
+      byType[e.type] = (byType[e.type] || 0) + 1
+    }
+
+    return {
+      total: exceptions.value.length,
+      unresolved,
+      todayNew,
+      resolved,
+      processing,
+      pending,
+      reopened,
+      byType,
+    }
+  })
+
+  function getExceptionById(id: string): ExceptionRecord | undefined {
+    return exceptions.value.find((e) => e.id === id)
+  }
+
+  function getRelatedRecord(exception: ExceptionRecord): BadgeRecord | undefined {
+    if (!exception.relatedRecordId) return undefined
+    return records.value.find((r) => r.id === exception.relatedRecordId)
+  }
+
+  function createException(data: {
+    type: ExceptionType
+    severity: 'warning' | 'error'
+    title: string
+    description: string
+    relatedRecordId?: string | null
+    operator?: string
+    checkIssueType?: CheckIssueType
+  }): ExceptionRecord {
+    const now = new Date().toISOString()
+    const operator = data.operator || DEFAULT_OPERATOR
+
+    const exception: ExceptionRecord = {
+      id: generateId(),
+      type: data.type,
+      status: 'pending',
+      severity: data.severity,
+      title: data.title,
+      description: data.description,
+      relatedRecordId: data.relatedRecordId || null,
+      assignee: null,
+      handler: null,
+      processingNote: '',
+      resolutionNote: '',
+      createdAt: now,
+      updatedAt: now,
+      traces: [],
+      checkIssueType: data.checkIssueType,
+    }
+
+    exception.traces.push(
+      createExceptionTrace({
+        exceptionId: exception.id,
+        action: 'create',
+        operator,
+        note: data.description,
+      }),
+    )
+
+    exceptions.value.push(exception)
+    return exception
+  }
+
+  function assignException(id: string, assignee: string, note?: string, operator?: string) {
+    const idx = exceptions.value.findIndex((e) => e.id === id)
+    if (idx === -1) return
+    const oldException = exceptions.value[idx]
+    const now = new Date().toISOString()
+    const op = operator || oldException.handler || DEFAULT_OPERATOR
+
+    exceptions.value[idx] = {
+      ...oldException,
+      assignee,
+      status: 'processing',
+      updatedAt: now,
+      traces: [
+        ...oldException.traces,
+        createExceptionTrace({
+          exceptionId: id,
+          action: 'assign',
+          operator: op,
+          note: note || `指派给 ${assignee} 处理`,
+          assignee,
+        }),
+      ],
+    }
+  }
+
+  function updateExceptionNote(id: string, note: string, operator?: string) {
+    const idx = exceptions.value.findIndex((e) => e.id === id)
+    if (idx === -1) return
+    const oldException = exceptions.value[idx]
+    const now = new Date().toISOString()
+    const op = operator || oldException.handler || DEFAULT_OPERATOR
+
+    exceptions.value[idx] = {
+      ...oldException,
+      processingNote: note,
+      updatedAt: now,
+      traces: [
+        ...oldException.traces,
+        createExceptionTrace({
+          exceptionId: id,
+          action: 'update_note',
+          operator: op,
+          note,
+        }),
+      ],
+    }
+  }
+
+  function resolveException(id: string, resolutionNote: string, operator?: string) {
+    const idx = exceptions.value.findIndex((e) => e.id === id)
+    if (idx === -1) return
+    const oldException = exceptions.value[idx]
+    const now = new Date().toISOString()
+    const op = operator || oldException.assignee || oldException.handler || DEFAULT_OPERATOR
+
+    exceptions.value[idx] = {
+      ...oldException,
+      status: 'resolved',
+      resolutionNote,
+      handler: op,
+      updatedAt: now,
+      traces: [
+        ...oldException.traces,
+        createExceptionTrace({
+          exceptionId: id,
+          action: 'resolve',
+          operator: op,
+          note: resolutionNote,
+        }),
+      ],
+    }
+  }
+
+  function reopenException(id: string, note: string, operator?: string) {
+    const idx = exceptions.value.findIndex((e) => e.id === id)
+    if (idx === -1) return
+    const oldException = exceptions.value[idx]
+    const now = new Date().toISOString()
+    const op = operator || DEFAULT_OPERATOR
+
+    exceptions.value[idx] = {
+      ...oldException,
+      status: 'reopened',
+      updatedAt: now,
+      traces: [
+        ...oldException.traces,
+        createExceptionTrace({
+          exceptionId: id,
+          action: 'reopen',
+          operator: op,
+          note,
+        }),
+      ],
+    }
+  }
+
+  function deleteException(id: string) {
+    const idx = exceptions.value.findIndex((e) => e.id === id)
+    if (idx !== -1) {
+      exceptions.value.splice(idx, 1)
+    }
+  }
+
+  function clearExceptionFilter() {
+    exceptionFilter.value = { ...DEFAULT_EXCEPTION_FILTER }
+  }
+
+  function setExceptionFilter(partial: Partial<ExceptionFilterState>) {
+    Object.assign(exceptionFilter.value, partial)
+  }
+
+  function syncCheckIssuesToExceptions() {
+    const now = new Date()
+    now.setHours(0, 0, 0, 0)
+
+    const existingExceptionKeys = new Set<string>()
+    for (const e of exceptions.value) {
+      if (e.checkIssueType && e.relatedRecordId && e.status !== 'resolved') {
+        existingExceptionKeys.add(`${e.checkIssueType}-${e.relatedRecordId}`)
+      }
+    }
+
+    for (const issue of checks.value) {
+      for (const recordId of issue.recordIds) {
+        const key = `${issue.type}-${recordId}`
+        if (!existingExceptionKeys.has(key)) {
+          const record = records.value.find((r) => r.id === recordId)
+          if (record) {
+            const mapped = mapCheckIssueToException(issue, record)
+            createException({
+              type: mapped.type as ExceptionType,
+              severity: mapped.severity as 'warning' | 'error',
+              title: mapped.title as string,
+              description: mapped.description as string,
+              relatedRecordId: recordId,
+              checkIssueType: issue.type,
+            })
+          }
+        }
+      }
+    }
+  }
 
   function getRecordById(id: string): BadgeRecord | undefined {
     return records.value.find((r) => r.id === id)
@@ -1473,6 +1836,7 @@ export const useBadgeStore = defineStore('badge', () => {
       handoverEndDate: '',
       pickupStatus: '',
       ledgerFilter: ledgerFilter.value,
+      exceptionFilter: exceptionFilter.value,
     }
   }
 
@@ -1505,6 +1869,7 @@ export const useBadgeStore = defineStore('badge', () => {
       handoverEndDate: '',
       pickupStatus: '',
       ledgerFilter: ledgerFilter.value,
+      exceptionFilter: exceptionFilter.value,
     }
     if (issue.type === 'duplicate_name') {
       const firstRecord = records.value.find((r) => r.id === issue.recordIds[0])
@@ -1693,11 +2058,14 @@ export const useBadgeStore = defineStore('badge', () => {
   }
 
   checkOverdueAppointments()
+  syncCheckIssuesToExceptions()
 
   return {
     records,
+    exceptions,
     filter,
     ledgerFilter,
+    exceptionFilter,
     selectedIds,
     filteredRecords,
     groupedByColor,
@@ -1705,14 +2073,20 @@ export const useBadgeStore = defineStore('badge', () => {
     allResponsiblePersons,
     allHandoverHandlers,
     allOperators,
+    allAssignees,
+    allExceptionHandlers,
     allProgressLogs,
     filteredLedgerLogs,
+    filteredExceptions,
     stats,
+    exceptionStats,
     checks,
     issueCount,
     pendingRecords,
     verificationStats,
     getRecordById,
+    getExceptionById,
+    getRelatedRecord,
     addRecord,
     updateRecord,
     deleteRecord,
@@ -1725,6 +2099,15 @@ export const useBadgeStore = defineStore('badge', () => {
     markOverdue,
     registerReissue,
     checkOverdueAppointments,
+    createException,
+    assignException,
+    updateExceptionNote,
+    resolveException,
+    reopenException,
+    deleteException,
+    clearExceptionFilter,
+    setExceptionFilter,
+    syncCheckIssuesToExceptions,
     toggleSelect,
     selectAll,
     clearSelection,
