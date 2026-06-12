@@ -1,27 +1,315 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
-import type { BadgeRecord, FilterState, CheckIssue, BadgeStatus, HandoverInfo } from '@/types'
-import { generateId } from '@/types'
+import type {
+  BadgeRecord,
+  FilterState,
+  CheckIssue,
+  BadgeStatus,
+  HandoverInfo,
+  ProgressLog,
+  ProgressNodeType,
+  OperationType,
+  LedgerFilterState,
+} from '@/types'
+import {
+  generateId,
+  STATUS_TO_PROGRESS_MAP,
+  OPERATION_TYPE_LABELS,
+  PROGRESS_NODE_LIST,
+} from '@/types'
 
 const STORAGE_KEY = 'badge-checklist-records'
+const DEFAULT_OPERATOR = '系统管理员'
+
+function createSeedLog(
+  recordId: string,
+  operationType: OperationType,
+  nodeType: ProgressNodeType,
+  status: BadgeStatus | null,
+  operator: string,
+  operatedAt: string,
+  reason: string = '',
+): ProgressLog {
+  return {
+    id: generateId(),
+    recordId,
+    operationType,
+    operationLabel: OPERATION_TYPE_LABELS[operationType],
+    nodeType,
+    previousStatus: null,
+    newStatus: status,
+    operator,
+    operatedAt,
+    reason,
+    fieldChanges: {},
+  }
+}
 
 const SEED_DATA: BadgeRecord[] = [
-  { id: 'seed1', name: '张伟', company: '华科技术', attendeeType: '嘉宾', badgeColor: '红色', printBatch: 'A1', status: '待打印', notes: 'VIP嘉宾', responsiblePerson: '李明', createdAt: '2025-01-01T00:00:00Z', updatedAt: '2025-01-01T00:00:00Z', handover: null },
-  { id: 'seed2', name: '王芳', company: '创新科技', attendeeType: '参展商', badgeColor: '蓝色', printBatch: 'A1', status: '待领取', notes: '', responsiblePerson: '李明', createdAt: '2025-01-01T00:00:00Z', updatedAt: '2025-01-01T00:00:00Z', handover: null },
-  { id: 'seed3', name: '张伟', company: '数字未来', attendeeType: '观众', badgeColor: '绿色', printBatch: 'A2', status: '待设计', notes: '', responsiblePerson: '', createdAt: '2025-01-01T00:00:00Z', updatedAt: '2025-01-01T00:00:00Z', handover: null },
-  { id: 'seed4', name: '刘洋', company: '星辰传媒', attendeeType: '媒体', badgeColor: '紫色', printBatch: 'A2', status: '已领取', notes: '', responsiblePerson: '赵红', createdAt: '2025-01-01T00:00:00Z', updatedAt: '2025-01-01T00:00:00Z', handover: { receiverName: '刘洋', receivedAt: '2025-01-05T10:30:00Z', handoverMethod: '当面领取', handler: '赵红', handoverNotes: '本人签字确认' } },
-  { id: 'seed5', name: '陈静', company: '光速网络', attendeeType: '参展商', badgeColor: '蓝色', printBatch: 'B1', status: '需重做', notes: '信息有误需重新制作', responsiblePerson: '赵红', createdAt: '2025-01-01T00:00:00Z', updatedAt: '2025-01-01T00:00:00Z', handover: null },
-  { id: 'seed6', name: '赵磊', company: '未来教育', attendeeType: '工作人员', badgeColor: '黄色', printBatch: 'B1', status: '待打印', notes: '', responsiblePerson: '', createdAt: '2025-01-01T00:00:00Z', updatedAt: '2025-01-01T00:00:00Z', handover: null },
-  { id: 'seed7', name: '孙丽', company: '阳光志愿者', attendeeType: '志愿者', badgeColor: '橙色', printBatch: '', status: '已领取', notes: '', responsiblePerson: '李明', createdAt: '2025-01-01T00:00:00Z', updatedAt: '2025-01-01T00:00:00Z', handover: null },
-  { id: 'seed8', name: '周涛', company: '盛世展览', attendeeType: '参展商', badgeColor: '蓝色', printBatch: 'A1', status: '待设计', notes: '', responsiblePerson: '赵红', createdAt: '2025-01-01T00:00:00Z', updatedAt: '2025-01-01T00:00:00Z', handover: null },
+  {
+    id: 'seed1',
+    name: '张伟',
+    company: '华科技术',
+    attendeeType: '嘉宾',
+    badgeColor: '红色',
+    printBatch: 'A1',
+    status: '待打印',
+    notes: 'VIP嘉宾',
+    responsiblePerson: '李明',
+    createdAt: '2025-01-01T00:00:00Z',
+    updatedAt: '2025-01-01T00:00:00Z',
+    handover: null,
+    currentNode: '打印',
+    progressLogs: [
+      createSeedLog('seed1', 'create', '新增', '待设计', '李明', '2025-01-01T00:00:00Z', '初始录入'),
+      {
+        ...createSeedLog('seed1', 'update_status', '设计', '待打印', '李明', '2025-01-01T02:00:00Z', '设计完成，确认排版'),
+        previousStatus: '待设计',
+      },
+    ],
+  },
+  {
+    id: 'seed2',
+    name: '王芳',
+    company: '创新科技',
+    attendeeType: '参展商',
+    badgeColor: '蓝色',
+    printBatch: 'A1',
+    status: '待领取',
+    notes: '',
+    responsiblePerson: '李明',
+    createdAt: '2025-01-01T00:00:00Z',
+    updatedAt: '2025-01-01T00:00:00Z',
+    handover: null,
+    currentNode: '待领取',
+    progressLogs: [
+      createSeedLog('seed2', 'create', '新增', '待设计', '李明', '2025-01-01T00:00:00Z', '初始录入'),
+      {
+        ...createSeedLog('seed2', 'update_status', '设计', '待打印', '李明', '2025-01-01T01:00:00Z'),
+        previousStatus: '待设计',
+      },
+      {
+        ...createSeedLog('seed2', 'update_status', '打印', '待领取', '赵红', '2025-01-01T04:00:00Z', '打印完成，质检合格'),
+        previousStatus: '待打印',
+      },
+    ],
+  },
+  {
+    id: 'seed3',
+    name: '张伟',
+    company: '数字未来',
+    attendeeType: '观众',
+    badgeColor: '绿色',
+    printBatch: 'A2',
+    status: '待设计',
+    notes: '',
+    responsiblePerson: '',
+    createdAt: '2025-01-01T00:00:00Z',
+    updatedAt: '2025-01-01T00:00:00Z',
+    handover: null,
+    currentNode: '设计',
+    progressLogs: [
+      createSeedLog('seed3', 'create', '新增', '待设计', '赵红', '2025-01-01T00:00:00Z', '线上报名导入'),
+    ],
+  },
+  {
+    id: 'seed4',
+    name: '刘洋',
+    company: '星辰传媒',
+    attendeeType: '媒体',
+    badgeColor: '紫色',
+    printBatch: 'A2',
+    status: '已领取',
+    notes: '',
+    responsiblePerson: '赵红',
+    createdAt: '2025-01-01T00:00:00Z',
+    updatedAt: '2025-01-05T10:30:00Z',
+    handover: {
+      receiverName: '刘洋',
+      receivedAt: '2025-01-05T10:30:00Z',
+      handoverMethod: '当面领取',
+      handler: '赵红',
+      handoverNotes: '本人签字确认',
+    },
+    currentNode: '领取交接',
+    progressLogs: [
+      createSeedLog('seed4', 'create', '新增', '待设计', '赵红', '2025-01-01T00:00:00Z', '媒体对接名单导入'),
+      {
+        ...createSeedLog('seed4', 'update_status', '设计', '待打印', '赵红', '2025-01-01T01:30:00Z'),
+        previousStatus: '待设计',
+      },
+      {
+        ...createSeedLog('seed4', 'update_status', '打印', '待领取', '赵红', '2025-01-02T09:00:00Z'),
+        previousStatus: '待打印',
+      },
+      {
+        ...createSeedLog('seed4', 'register_handover', '领取交接', '已领取', '赵红', '2025-01-05T10:30:00Z', '本人签字确认'),
+        previousStatus: '待领取',
+        handoverInfo: {
+          receiverName: '刘洋',
+          receivedAt: '2025-01-05T10:30:00Z',
+          handoverMethod: '当面领取',
+          handler: '赵红',
+          handoverNotes: '本人签字确认',
+        },
+      },
+    ],
+  },
+  {
+    id: 'seed5',
+    name: '陈静',
+    company: '光速网络',
+    attendeeType: '参展商',
+    badgeColor: '蓝色',
+    printBatch: 'B1',
+    status: '需重做',
+    notes: '信息有误需重新制作',
+    responsiblePerson: '赵红',
+    createdAt: '2025-01-01T00:00:00Z',
+    updatedAt: '2025-01-01T00:00:00Z',
+    handover: null,
+    currentNode: '需重做',
+    progressLogs: [
+      createSeedLog('seed5', 'create', '新增', '待设计', '赵红', '2025-01-01T00:00:00Z'),
+      {
+        ...createSeedLog('seed5', 'update_status', '设计', '待打印', '赵红', '2025-01-01T01:00:00Z'),
+        previousStatus: '待设计',
+      },
+      {
+        ...createSeedLog('seed5', 'request_redo', '需重做', '需重做', '李明', '2025-01-02T15:00:00Z', '公司名称拼写错误，需重新制作'),
+        previousStatus: '待打印',
+      },
+    ],
+  },
+  {
+    id: 'seed6',
+    name: '赵磊',
+    company: '未来教育',
+    attendeeType: '工作人员',
+    badgeColor: '黄色',
+    printBatch: 'B1',
+    status: '待打印',
+    notes: '',
+    responsiblePerson: '',
+    createdAt: '2025-01-01T00:00:00Z',
+    updatedAt: '2025-01-01T00:00:00Z',
+    handover: null,
+    currentNode: '打印',
+    progressLogs: [
+      createSeedLog('seed6', 'create', '新增', '待设计', '李明', '2025-01-01T00:00:00Z', '工作人员名单'),
+      {
+        ...createSeedLog('seed6', 'update_status', '设计', '待打印', '李明', '2025-01-01T02:30:00Z'),
+        previousStatus: '待设计',
+      },
+    ],
+  },
+  {
+    id: 'seed7',
+    name: '孙丽',
+    company: '阳光志愿者',
+    attendeeType: '志愿者',
+    badgeColor: '橙色',
+    printBatch: '',
+    status: '已领取',
+    notes: '',
+    responsiblePerson: '李明',
+    createdAt: '2025-01-01T00:00:00Z',
+    updatedAt: '2025-01-01T00:00:00Z',
+    handover: null,
+    currentNode: '领取交接',
+    progressLogs: [
+      createSeedLog('seed7', 'create', '新增', '待设计', '李明', '2025-01-01T00:00:00Z'),
+      {
+        ...createSeedLog('seed7', 'update_status', '设计', '待打印', '李明', '2025-01-01T01:00:00Z'),
+        previousStatus: '待设计',
+      },
+      {
+        ...createSeedLog('seed7', 'update_status', '打印', '待领取', '李明', '2025-01-01T03:00:00Z'),
+        previousStatus: '待打印',
+      },
+      {
+        ...createSeedLog('seed7', 'register_handover', '领取交接', '已领取', '李明', '2025-01-02T08:00:00Z', '志愿者领队统一领取'),
+        previousStatus: '待领取',
+      },
+    ],
+  },
+  {
+    id: 'seed8',
+    name: '周涛',
+    company: '盛世展览',
+    attendeeType: '参展商',
+    badgeColor: '蓝色',
+    printBatch: 'A1',
+    status: '待设计',
+    notes: '',
+    responsiblePerson: '赵红',
+    createdAt: '2025-01-01T00:00:00Z',
+    updatedAt: '2025-01-01T00:00:00Z',
+    handover: null,
+    currentNode: '设计',
+    progressLogs: [
+      createSeedLog('seed8', 'create', '新增', '待设计', '赵红', '2025-01-01T00:00:00Z', '参展商名单导入'),
+    ],
+  },
 ]
+
+function migrateRecord(record: any): BadgeRecord {
+  if (!record.progressLogs) {
+    record.progressLogs = [
+      createSeedLog(
+        record.id,
+        'create',
+        '新增',
+        record.status === '已领取' ? '待设计' : record.status,
+        record.responsiblePerson || DEFAULT_OPERATOR,
+        record.createdAt,
+        '历史数据迁移',
+      ),
+    ]
+    if (record.status !== '待设计') {
+      record.progressLogs.push({
+        ...createSeedLog(
+          record.id,
+          'update_status',
+          STATUS_TO_PROGRESS_MAP[record.status],
+          record.status,
+          record.responsiblePerson || DEFAULT_OPERATOR,
+          record.updatedAt,
+          '历史状态迁移',
+        ),
+        previousStatus: '待设计',
+      })
+    }
+    if (record.handover) {
+      record.progressLogs.push({
+        ...createSeedLog(
+          record.id,
+          'register_handover',
+          '领取交接',
+          '已领取',
+          record.handover.handler,
+          record.handover.receivedAt,
+          record.handover.handoverNotes,
+        ),
+        previousStatus: '待领取',
+        handoverInfo: record.handover,
+      })
+    }
+  }
+  if (!record.currentNode) {
+    record.currentNode = STATUS_TO_PROGRESS_MAP[record.status]
+  }
+  return record as BadgeRecord
+}
 
 function loadRecords(): BadgeRecord[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (raw) {
       const parsed = JSON.parse(raw)
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.map(migrateRecord)
+      }
     }
   } catch {}
   return [...SEED_DATA]
@@ -31,12 +319,77 @@ function saveRecords(records: BadgeRecord[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(records))
 }
 
+function createProgressLog(params: {
+  recordId: string
+  operationType: OperationType
+  nodeType: ProgressNodeType
+  previousStatus: BadgeStatus | null
+  newStatus: BadgeStatus | null
+  operator: string
+  reason?: string
+  fieldChanges?: Record<string, { old: string | null; new: string | null }>
+  batchId?: string
+  handoverInfo?: HandoverInfo
+}): ProgressLog {
+  return {
+    id: generateId(),
+    recordId: params.recordId,
+    operationType: params.operationType,
+    operationLabel: OPERATION_TYPE_LABELS[params.operationType],
+    nodeType: params.nodeType,
+    previousStatus: params.previousStatus,
+    newStatus: params.newStatus,
+    operator: params.operator,
+    operatedAt: new Date().toISOString(),
+    reason: params.reason || '',
+    fieldChanges: params.fieldChanges || {},
+    batchId: params.batchId,
+    handoverInfo: params.handoverInfo,
+  }
+}
+
+function diffFields(
+  oldRecord: BadgeRecord,
+  newData: Partial<BadgeRecord>,
+): Record<string, { old: string | null; new: string | null }> {
+  const changes: Record<string, { old: string | null; new: string | null }> = {}
+  const fieldLabels: Record<string, string> = {
+    name: '姓名',
+    company: '公司',
+    attendeeType: '参会类型',
+    badgeColor: '胸卡颜色',
+    printBatch: '打印批次',
+    notes: '备注',
+    responsiblePerson: '负责人',
+  }
+  for (const [key, label] of Object.entries(fieldLabels)) {
+    const oldVal = (oldRecord as any)[key] || null
+    const newVal = (newData as any)[key]
+    if (newVal !== undefined && (oldVal || '') !== (newVal || '')) {
+      changes[label] = { old: oldVal, new: newVal || null }
+    }
+  }
+  return changes
+}
+
 export const useBadgeStore = defineStore('badge', () => {
   const records = ref<BadgeRecord[]>(loadRecords())
 
   watch(records, (val) => {
     saveRecords(val)
   }, { deep: true })
+
+  const ledgerFilter = ref<LedgerFilterState>({
+    searchPerson: '',
+    printBatch: '',
+    status: '',
+    progressNode: '',
+    operationType: '',
+    operator: '',
+    startDate: '',
+    endDate: '',
+    onlyException: false,
+  })
 
   const filter = ref<FilterState>({
     attendeeType: '',
@@ -50,9 +403,84 @@ export const useBadgeStore = defineStore('badge', () => {
     handoverHandler: '',
     handoverStartDate: '',
     handoverEndDate: '',
+    ledgerFilter: ledgerFilter.value,
   })
 
   const selectedIds = ref<Set<string>>(new Set())
+
+  const allProgressLogs = computed(() => {
+    const logs: ProgressLog[] = []
+    for (const r of records.value) {
+      logs.push(...(r.progressLogs || []))
+    }
+    return logs.sort((a, b) => new Date(b.operatedAt).getTime() - new Date(a.operatedAt).getTime())
+  })
+
+  const allOperators = computed(() => {
+    const operators = new Set<string>()
+    for (const log of allProgressLogs.value) {
+      if (log.operator) operators.add(log.operator)
+    }
+    return Array.from(operators).sort()
+  })
+
+  const filteredLedgerLogs = computed(() => {
+    return allProgressLogs.value.filter((log) => {
+      const record = records.value.find((r) => r.id === log.recordId)
+      if (!record) return false
+
+      if (ledgerFilter.value.searchPerson) {
+        const search = ledgerFilter.value.searchPerson.toLowerCase()
+        if (
+          !record.name.toLowerCase().includes(search) &&
+          !record.company.toLowerCase().includes(search)
+        ) {
+          return false
+        }
+      }
+      if (ledgerFilter.value.printBatch) {
+        if (ledgerFilter.value.printBatch === '__empty__') {
+          if (record.printBatch) return false
+        } else if (record.printBatch !== ledgerFilter.value.printBatch) {
+          return false
+        }
+      }
+      if (ledgerFilter.value.status) {
+        if (log.newStatus !== ledgerFilter.value.status) return false
+      }
+      if (ledgerFilter.value.progressNode) {
+        if (log.nodeType !== ledgerFilter.value.progressNode) return false
+      }
+      if (ledgerFilter.value.operationType) {
+        if (log.operationType !== ledgerFilter.value.operationType) return false
+      }
+      if (ledgerFilter.value.operator) {
+        if (ledgerFilter.value.operator === '__empty__') {
+          if (log.operator) return false
+        } else if (log.operator !== ledgerFilter.value.operator) {
+          return false
+        }
+      }
+      if (ledgerFilter.value.startDate) {
+        const start = new Date(ledgerFilter.value.startDate)
+        start.setHours(0, 0, 0, 0)
+        const operated = new Date(log.operatedAt)
+        operated.setHours(0, 0, 0, 0)
+        if (operated < start) return false
+      }
+      if (ledgerFilter.value.endDate) {
+        const end = new Date(ledgerFilter.value.endDate)
+        end.setHours(23, 59, 59, 999)
+        const operated = new Date(log.operatedAt)
+        operated.setHours(0, 0, 0, 0)
+        if (operated > end) return false
+      }
+      if (ledgerFilter.value.onlyException) {
+        if (log.nodeType !== '需重做' && !log.reason) return false
+      }
+      return true
+    })
+  })
 
   const filteredRecords = computed(() => {
     return records.value.filter((r) => {
@@ -245,21 +673,125 @@ export const useBadgeStore = defineStore('badge', () => {
 
   const issueCount = computed(() => checks.value.length)
 
-  function addRecord(data: Omit<BadgeRecord, 'id' | 'createdAt' | 'updatedAt'>) {
+  function getRecordById(id: string): BadgeRecord | undefined {
+    return records.value.find((r) => r.id === id)
+  }
+
+  function addRecord(data: Omit<BadgeRecord, 'id' | 'createdAt' | 'updatedAt' | 'progressLogs' | 'currentNode'>) {
     const now = new Date().toISOString()
+    const initialStatus: BadgeStatus = data.status || '待设计'
+    const initialNode: ProgressNodeType = STATUS_TO_PROGRESS_MAP[initialStatus]
+    const operator = data.responsiblePerson || DEFAULT_OPERATOR
+
+    const createLog = createProgressLog({
+      recordId: '',
+      operationType: 'create',
+      nodeType: '新增',
+      previousStatus: null,
+      newStatus: initialStatus,
+      operator,
+      reason: data.notes || '新增记录',
+    })
+
     const record: BadgeRecord = {
       ...data,
       id: generateId(),
       createdAt: now,
       updatedAt: now,
+      currentNode: initialNode,
+      progressLogs: [createLog],
     }
+    record.progressLogs[0].recordId = record.id
+
+    if (initialNode !== '新增') {
+      record.progressLogs.push(
+        createProgressLog({
+          recordId: record.id,
+          operationType: 'update_status',
+          nodeType: initialNode,
+          previousStatus: '待设计',
+          newStatus: initialStatus,
+          operator,
+          reason: '初始状态设置',
+        }),
+      )
+    }
+
     records.value.push(record)
   }
 
-  function updateRecord(id: string, data: Partial<BadgeRecord>) {
+  function updateRecord(
+    id: string,
+    data: Partial<BadgeRecord>,
+    options?: { operator?: string; reason?: string },
+  ) {
     const idx = records.value.findIndex((r) => r.id === id)
     if (idx !== -1) {
-      records.value[idx] = { ...records.value[idx], ...data, updatedAt: new Date().toISOString() }
+      const oldRecord = { ...records.value[idx] }
+      const now = new Date().toISOString()
+      const operator = options?.operator || data.responsiblePerson || oldRecord.responsiblePerson || DEFAULT_OPERATOR
+      const newRecord = { ...oldRecord, ...data, updatedAt: now }
+
+      const fieldChanges = diffFields(oldRecord, data)
+      const hasStatusChange = data.status && data.status !== oldRecord.status
+      const hasBatchChange = data.printBatch !== undefined && data.printBatch !== oldRecord.printBatch
+
+      if (hasStatusChange) {
+        const newStatus = data.status as BadgeStatus
+        const newNode = STATUS_TO_PROGRESS_MAP[newStatus]
+        newRecord.currentNode = newNode
+
+        const isRedo = newStatus === '需重做'
+        const opType: OperationType = isRedo ? 'request_redo' : 'update_status'
+
+        newRecord.progressLogs = [
+          ...oldRecord.progressLogs,
+          createProgressLog({
+            recordId: id,
+            operationType: opType,
+            nodeType: newNode,
+            previousStatus: oldRecord.status,
+            newStatus,
+            operator,
+            reason: options?.reason || data.notes || (isRedo ? '需重做' : ''),
+            fieldChanges: {
+              ...fieldChanges,
+              '状态': { old: oldRecord.status, new: newStatus },
+            },
+          }),
+        ]
+      } else if (hasBatchChange) {
+        newRecord.progressLogs = [
+          ...oldRecord.progressLogs,
+          createProgressLog({
+            recordId: id,
+            operationType: 'assign_batch',
+            nodeType: newRecord.currentNode,
+            previousStatus: oldRecord.status,
+            newStatus: oldRecord.status,
+            operator,
+            reason: options?.reason || '分配/修改打印批次',
+            fieldChanges,
+            batchId: data.printBatch,
+          }),
+        ]
+      } else if (Object.keys(fieldChanges).length > 0) {
+        newRecord.progressLogs = [
+          ...oldRecord.progressLogs,
+          createProgressLog({
+            recordId: id,
+            operationType: 'update_info',
+            nodeType: newRecord.currentNode,
+            previousStatus: oldRecord.status,
+            newStatus: oldRecord.status,
+            operator,
+            reason: options?.reason || '修改基础信息',
+            fieldChanges,
+          }),
+        ]
+      }
+
+      records.value[idx] = newRecord
     }
   }
 
@@ -271,26 +803,85 @@ export const useBadgeStore = defineStore('badge', () => {
     selectedIds.value.delete(id)
   }
 
-  function batchUpdateStatus(ids: string[], status: BadgeStatus) {
+  function batchUpdateStatus(
+    ids: string[],
+    status: BadgeStatus,
+    options?: { operator?: string; reason?: string },
+  ) {
     const now = new Date().toISOString()
+    const newNode = STATUS_TO_PROGRESS_MAP[status]
+    const isRedo = status === '需重做'
+    const opType: OperationType = isRedo ? 'request_redo' : 'batch_update_status'
+
     for (const id of ids) {
       const idx = records.value.findIndex((r) => r.id === id)
       if (idx !== -1) {
-        records.value[idx] = { ...records.value[idx], status, updatedAt: now }
+        const oldRecord = records.value[idx]
+        const operator = options?.operator || oldRecord.responsiblePerson || DEFAULT_OPERATOR
+
+        records.value[idx] = {
+          ...oldRecord,
+          status,
+          currentNode: newNode,
+          updatedAt: now,
+          progressLogs: [
+            ...oldRecord.progressLogs,
+            createProgressLog({
+              recordId: id,
+              operationType: opType,
+              nodeType: newNode,
+              previousStatus: oldRecord.status,
+              newStatus: status,
+              operator,
+              reason: options?.reason || (isRedo ? '批量申请重做' : '批量状态更新'),
+              fieldChanges: {
+                '状态': { old: oldRecord.status, new: status },
+              },
+            }),
+          ],
+        }
       }
     }
   }
 
-  function batchRegisterHandover(ids: string[], handoverInfo: HandoverInfo) {
+  function batchRegisterHandover(
+    ids: string[],
+    handoverInfo: HandoverInfo,
+    options?: { reason?: string },
+  ) {
     const now = new Date().toISOString()
+    const isBatch = ids.length > 1
+    const opType: OperationType = isBatch ? 'batch_register_handover' : 'register_handover'
+
     for (const id of ids) {
       const idx = records.value.findIndex((r) => r.id === id)
       if (idx !== -1) {
+        const oldRecord = records.value[idx]
+
         records.value[idx] = {
-          ...records.value[idx],
+          ...oldRecord,
           status: '已领取',
+          currentNode: '领取交接',
           handover: handoverInfo,
           updatedAt: now,
+          progressLogs: [
+            ...oldRecord.progressLogs,
+            createProgressLog({
+              recordId: id,
+              operationType: opType,
+              nodeType: '领取交接',
+              previousStatus: oldRecord.status,
+              newStatus: '已领取',
+              operator: handoverInfo.handler,
+              reason: options?.reason || handoverInfo.handoverNotes || '领取交接登记',
+              handoverInfo,
+              fieldChanges: {
+                '状态': { old: oldRecord.status, new: '已领取' },
+                '领取人': { old: null, new: handoverInfo.receiverName },
+                '交接方式': { old: null, new: handoverInfo.handoverMethod },
+              },
+            }),
+          ],
         }
       }
     }
@@ -299,10 +890,31 @@ export const useBadgeStore = defineStore('badge', () => {
   function clearHandover(id: string) {
     const idx = records.value.findIndex((r) => r.id === id)
     if (idx !== -1) {
+      const oldRecord = records.value[idx]
+      const operator = oldRecord.responsiblePerson || DEFAULT_OPERATOR
+
       records.value[idx] = {
-        ...records.value[idx],
+        ...oldRecord,
         handover: null,
+        status: '待领取',
+        currentNode: '待领取',
         updatedAt: new Date().toISOString(),
+        progressLogs: [
+          ...oldRecord.progressLogs,
+          createProgressLog({
+            recordId: id,
+            operationType: 'clear_handover',
+            nodeType: '待领取',
+            previousStatus: oldRecord.status,
+            newStatus: '待领取',
+            operator,
+            reason: '撤销领取交接，退回待领取状态',
+            fieldChanges: {
+              '状态': { old: oldRecord.status, new: '待领取' },
+              '交接信息': { old: '已登记', new: null },
+            },
+          }),
+        ],
       }
     }
   }
@@ -349,6 +961,21 @@ export const useBadgeStore = defineStore('badge', () => {
       handoverHandler: '',
       handoverStartDate: '',
       handoverEndDate: '',
+      ledgerFilter: ledgerFilter.value,
+    }
+  }
+
+  function clearLedgerFilter() {
+    ledgerFilter.value = {
+      searchPerson: '',
+      printBatch: '',
+      status: '',
+      progressNode: '',
+      operationType: '',
+      operator: '',
+      startDate: '',
+      endDate: '',
+      onlyException: false,
     }
   }
 
@@ -365,6 +992,7 @@ export const useBadgeStore = defineStore('badge', () => {
       handoverHandler: '',
       handoverStartDate: '',
       handoverEndDate: '',
+      ledgerFilter: ledgerFilter.value,
     }
     if (issue.type === 'duplicate_name') {
       const firstRecord = records.value.find((r) => r.id === issue.recordIds[0])
@@ -410,18 +1038,43 @@ export const useBadgeStore = defineStore('badge', () => {
     return { total, collected, redo, handoverComplete, completionRate, handoverRate, personDist, handlerDist }
   }
 
+  function formatDateTime(isoStr: string): string {
+    const d = new Date(isoStr)
+    return d.toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  }
+
+  function formatDate(isoStr: string): string {
+    const d = new Date(isoStr)
+    return d.toLocaleDateString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    })
+  }
+
   return {
     records,
     filter,
+    ledgerFilter,
     selectedIds,
     filteredRecords,
     groupedByColor,
     allBatches,
     allResponsiblePersons,
     allHandoverHandlers,
+    allOperators,
+    allProgressLogs,
+    filteredLedgerLogs,
     stats,
     checks,
     issueCount,
+    getRecordById,
     addRecord,
     updateRecord,
     deleteRecord,
@@ -434,7 +1087,10 @@ export const useBadgeStore = defineStore('badge', () => {
     clearSelection,
     setFilter,
     clearFilter,
+    clearLedgerFilter,
     focusOnIssue,
     getBatchStats,
+    formatDateTime,
+    formatDate,
   }
 })

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { reactive, watch, computed } from 'vue'
-import { X } from 'lucide-vue-next'
+import { reactive, watch, computed, ref } from 'vue'
+import { X, AlertTriangle } from 'lucide-vue-next'
 import { COLOR_LIST, ATTENDEE_TYPE_LIST, STATUS_LIST, COLOR_MAP } from '@/types'
 import type { BadgeRecord, BadgeColor, AttendeeType, BadgeStatus } from '@/types'
 import { useBadgeStore } from '@/composables/useBadgeStore'
@@ -14,12 +14,22 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: []
-  save: [data: Omit<BadgeRecord, 'id' | 'createdAt' | 'updatedAt'>]
+  save: [
+    data: Omit<BadgeRecord, 'id' | 'createdAt' | 'updatedAt' | 'progressLogs' | 'currentNode'>,
+    options?: { reason?: string },
+  ]
 }>()
 
 const store = useBadgeStore()
 
 const isEdit = computed(() => !!props.record)
+const previousStatus = ref<BadgeStatus | ''>('')
+const showRedoReason = computed(() => {
+  if (!isEdit.value) return false
+  return form.status === '需重做' && previousStatus.value !== '需重做'
+})
+
+const redoReason = ref('')
 
 const form = reactive({
   name: '',
@@ -42,6 +52,7 @@ function resetForm() {
     form.status = props.record.status
     form.notes = props.record.notes
     form.responsiblePerson = props.record.responsiblePerson
+    previousStatus.value = props.record.status
   } else {
     form.name = ''
     form.company = ''
@@ -51,7 +62,9 @@ function resetForm() {
     form.status = ''
     form.notes = ''
     form.responsiblePerson = ''
+    previousStatus.value = ''
   }
+  redoReason.value = ''
 }
 
 watch(() => props.visible, (val) => {
@@ -63,7 +76,9 @@ function handleClose() {
 }
 
 const isFormValid = computed(() => {
-  return !!form.name.trim() && !!form.attendeeType && !!form.badgeColor && !!form.status
+  const baseValid = !!form.name.trim() && !!form.attendeeType && !!form.badgeColor && !!form.status
+  if (showRedoReason.value && !redoReason.value.trim()) return false
+  return baseValid
 })
 
 const validationErrors = computed(() => {
@@ -72,12 +87,13 @@ const validationErrors = computed(() => {
   if (!form.attendeeType) errors.push('请选择参会类型')
   if (!form.badgeColor) errors.push('请选择胸卡颜色')
   if (!form.status) errors.push('请选择状态')
+  if (showRedoReason.value && !redoReason.value.trim()) errors.push('请填写重做原因')
   return errors
 })
 
 function handleSave() {
   if (!isFormValid.value) return
-  emit('save', {
+  const saveData: Omit<BadgeRecord, 'id' | 'createdAt' | 'updatedAt' | 'progressLogs' | 'currentNode'> = {
     name: form.name,
     company: form.company,
     attendeeType: form.attendeeType as AttendeeType,
@@ -87,7 +103,11 @@ function handleSave() {
     notes: form.notes,
     responsiblePerson: form.responsiblePerson,
     handover: null,
-  })
+  }
+  const options = showRedoReason.value && redoReason.value.trim()
+    ? { reason: redoReason.value.trim() }
+    : undefined
+  emit('save', saveData, options)
 }
 </script>
 
@@ -159,6 +179,24 @@ function handleSave() {
           <div>
             <label class="block text-sm font-medium text-slate-700 mb-1">负责人</label>
             <input v-model="form.responsiblePerson" type="text" class="input-field" placeholder="请输入负责人" />
+          </div>
+
+          <div v-if="showRedoReason" class="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div class="flex items-start gap-2">
+              <AlertTriangle class="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+              <div class="flex-1">
+                <label class="block text-sm font-medium text-red-700 mb-1">
+                  重做原因 <span class="text-red-500">*</span>
+                </label>
+                <textarea
+                  v-model="redoReason"
+                  class="input-field bg-white border-red-300"
+                  rows="3"
+                  placeholder="请详细说明需要重做的原因，如：信息错误、打印质量问题、遗失等"
+                />
+                <p class="mt-1 text-xs text-red-500">此原因将记录在操作台账中，便于后续追溯</p>
+              </div>
+            </div>
           </div>
         </div>
 

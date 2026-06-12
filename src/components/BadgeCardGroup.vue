@@ -27,6 +27,7 @@
         @toggle-select="$emit('toggle-select', $event)"
         @register-handover="$emit('register-handover', $event)"
         @view-handover="$emit('view-handover', $event)"
+        @view-progress="$emit('view-progress', $event)"
       />
     </div>
   </div>
@@ -51,6 +52,7 @@ defineEmits<{
   'toggle-select': [id: string]
   'register-handover': [record: BadgeRecord]
   'view-handover': [id: string]
+  'view-progress': [id: string]
 }>()
 
 const collapsed = ref(false)

@@ -41,20 +41,11 @@
         <User class="w-3.5 h-3.5 text-slate-400 shrink-0" />
         <span class="font-medium text-sm truncate">{{ record.name }}</span>
         <button
-          v-if="record.handover"
-          class="ml-auto inline-flex items-center gap-1 text-xs bg-green-50 text-green-700 border border-green-200 rounded px-2 py-0.5 hover:bg-green-100 transition-colors"
-          @click.stop="$emit('view-handover', record.id)"
+          class="ml-auto inline-flex items-center gap-1 text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 rounded px-2 py-0.5 hover:bg-indigo-100 transition-colors"
+          @click.stop="$emit('view-progress', record.id)"
         >
-          <Handshake class="w-3 h-3" />
-          已交接
-        </button>
-        <button
-          v-else
-          class="ml-auto inline-flex items-center gap-1 text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded px-2 py-0.5 hover:bg-blue-100 transition-colors"
-          @click.stop="$emit('register-handover', record)"
-        >
-          <ClipboardList class="w-3 h-3" />
-          登记领取
+          <GitBranch class="w-3 h-3" />
+          进度追踪
         </button>
       </div>
 
@@ -90,10 +81,46 @@
         </span>
       </div>
 
+      <div class="mt-1">
+        <div class="relative flex items-center justify-between">
+          <div
+            v-for="(node, idx) in PROGRESS_NODE_LIST"
+            :key="node"
+            class="flex flex-col items-center z-10"
+            :style="{ width: (100 / PROGRESS_NODE_LIST.length) + '%' }"
+          >
+            <div
+              class="w-3.5 h-3.5 rounded-full flex items-center justify-center transition-all"
+              :title="node"
+              :class="nodeProgressMap[node] === 'done'
+                ? 'bg-green-500'
+                : nodeProgressMap[node] === 'current'
+                ? 'bg-primary-500 ring-2 ring-primary-200 scale-125'
+                : 'bg-slate-200'"
+            >
+              <Check v-if="nodeProgressMap[node] === 'done'" class="w-2 h-2 text-white" />
+            </div>
+          </div>
+          <div class="absolute top-[7px] left-0 right-0 h-0.5 bg-slate-200 -z-0 mx-1">
+            <div
+              class="h-full bg-green-500 transition-all duration-300"
+              :style="{ width: progressPercent + '%' }"
+            />
+          </div>
+        </div>
+      </div>
+
       <div v-if="record.handover" class="flex items-center gap-2 text-xs">
         <Handshake class="w-3.5 h-3.5 text-green-500 shrink-0" />
         <span class="text-green-600">
           {{ record.handover.receiverName }} · {{ record.handover.handoverMethod }} · {{ record.handover.handler }}
+        </span>
+      </div>
+
+      <div v-if="record.currentNode === '需重做'" class="flex items-center gap-2 text-xs">
+        <AlertTriangle class="w-3.5 h-3.5 text-red-500 shrink-0" />
+        <span class="text-red-600 font-medium">
+          异常：{{ getLatestReason || '需重做处理' }}
         </span>
       </div>
 
@@ -117,6 +144,13 @@
         <Edit2 class="w-4 h-4" />
       </button>
       <button
+        class="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-indigo-500 transition-colors"
+        @click="$emit('view-progress', record.id)"
+        title="查看进度追踪"
+      >
+        <GitBranch class="w-4 h-4" />
+      </button>
+      <button
         class="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-green-500 transition-colors"
         @click="record.handover ? $emit('view-handover', record.id) : $emit('register-handover', record)"
         :title="record.handover ? '查看交接' : '登记领取'"
@@ -137,8 +171,26 @@
 <script setup lang="ts">
 import { computed, toRefs } from 'vue'
 import type { BadgeRecord } from '@/types'
-import { COLOR_MAP, STATUS_COLOR_MAP } from '@/types'
-import { Edit2, Trash2, Building2, Tag, Layers, User, FileText, StickyNote, Handshake, ClipboardList } from 'lucide-vue-next'
+import {
+  COLOR_MAP,
+  STATUS_COLOR_MAP,
+  PROGRESS_NODE_LIST,
+  PROGRESS_NODE_ORDER,
+} from '@/types'
+import {
+  Edit2,
+  Trash2,
+  Building2,
+  Tag,
+  Layers,
+  User,
+  FileText,
+  StickyNote,
+  Handshake,
+  GitBranch,
+  Check,
+  AlertTriangle,
+} from 'lucide-vue-next'
 import { useBadgeStore } from '@/composables/useBadgeStore'
 
 const store = useBadgeStore()
@@ -151,11 +203,44 @@ const props = defineProps<{
 
 const highlighted = computed(() => filter.value.focusRecordIds.includes(props.record.id))
 
+const nodeProgressMap = computed(() => {
+  const map: Record<string, 'done' | 'current' | 'pending'> = {}
+  const currentOrder = PROGRESS_NODE_ORDER[props.record.currentNode]
+  for (const node of PROGRESS_NODE_LIST) {
+    const order = PROGRESS_NODE_ORDER[node]
+    if (order < currentOrder) {
+      map[node] = 'done'
+    } else if (order === currentOrder) {
+      map[node] = 'current'
+    } else {
+      map[node] = 'pending'
+    }
+  }
+  return map
+})
+
+const progressPercent = computed(() => {
+  const currentOrder = PROGRESS_NODE_ORDER[props.record.currentNode]
+  const total = PROGRESS_NODE_LIST.length - 1
+  return Math.min(100, Math.round((currentOrder / total) * 100))
+})
+
+const getLatestReason = computed(() => {
+  const logs = [...props.record.progressLogs].sort(
+    (a, b) => new Date(b.operatedAt).getTime() - new Date(a.operatedAt).getTime(),
+  )
+  for (const log of logs) {
+    if (log.reason) return log.reason
+  }
+  return ''
+})
+
 defineEmits<{
   edit: [record: BadgeRecord]
   delete: [id: string]
   'toggle-select': [id: string]
   'register-handover': [record: BadgeRecord]
   'view-handover': [id: string]
+  'view-progress': [id: string]
 }>()
 </script>

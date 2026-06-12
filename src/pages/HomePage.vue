@@ -11,14 +11,16 @@ import BatchToolbar from '@/components/BatchToolbar.vue'
 import BatchMode from '@/components/BatchMode.vue'
 import HandoverModal from '@/components/HandoverModal.vue'
 import HandoverDetailModal from '@/components/HandoverDetailModal.vue'
-import { Plus, LayoutGrid, Package, Search, Handshake } from 'lucide-vue-next'
+import ProgressDetailModal from '@/components/ProgressDetailModal.vue'
+import LedgerPanel from '@/components/LedgerPanel.vue'
+import { Plus, LayoutGrid, Package, Search, Handshake, GitBranch, BookOpen } from 'lucide-vue-next'
 
 const store = useBadgeStore()
 const { filter } = toRefs(store)
 
 const showForm = ref(false)
 const editingRecord = ref<BadgeRecord | null>(null)
-const mode = ref<'normal' | 'batch'>('normal')
+const mode = ref<'normal' | 'batch' | 'ledger'>('normal')
 const scrollContainer = ref<HTMLElement | null>(null)
 
 const showHandoverModal = ref(false)
@@ -27,6 +29,9 @@ const handoverDefaultRecord = ref<BadgeRecord | null>(null)
 
 const showHandoverDetail = ref(false)
 const handoverDetailId = ref<string | null>(null)
+
+const showProgressDetail = ref(false)
+const progressDetailId = ref<string | null>(null)
 
 const colorOrder = ['红色', '蓝色', '绿色', '黄色', '紫色', '橙色', '灰色']
 
@@ -75,10 +80,13 @@ function handleDelete(id: string) {
   }
 }
 
-function handleSave(data: Omit<BadgeRecord, 'id' | 'createdAt' | 'updatedAt'>) {
+function handleSave(
+  data: Omit<BadgeRecord, 'id' | 'createdAt' | 'updatedAt' | 'progressLogs' | 'currentNode'>,
+  options?: { reason?: string },
+) {
   if (editingRecord.value) {
     const { handover, ...rest } = data
-    store.updateRecord(editingRecord.value.id, { ...rest, handover: editingRecord.value.handover })
+    store.updateRecord(editingRecord.value.id, { ...rest, handover: editingRecord.value.handover } as Partial<BadgeRecord>, options)
   } else {
     store.addRecord(data)
   }
@@ -102,6 +110,11 @@ function handleViewHandover(id: string) {
   showHandoverDetail.value = true
 }
 
+function handleViewProgress(id: string) {
+  progressDetailId.value = id
+  showProgressDetail.value = true
+}
+
 function handleBatchRegisterHandover() {
   if (store.selectedIds.size === 0) return
   handoverRecordIds.value = Array.from(store.selectedIds)
@@ -117,6 +130,10 @@ function handleHandoverDetailEdit(record: BadgeRecord) {
   handoverRecordIds.value = [record.id]
   handoverDefaultRecord.value = record
   showHandoverModal.value = true
+}
+
+function handleLedgerViewRecord(id: string) {
+  handleViewProgress(id)
 }
 </script>
 
@@ -154,6 +171,16 @@ function handleHandoverDetailEdit(record: BadgeRecord) {
             <Package class="w-4 h-4" />
             批次制作
           </button>
+          <button
+            class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+            :class="mode === 'ledger'
+              ? 'bg-indigo-600 text-white'
+              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+            @click="mode = 'ledger'"
+          >
+            <BookOpen class="w-4 h-4" />
+            操作台账
+          </button>
           <div class="w-px h-6 bg-slate-200 mx-1" />
           <button class="btn-primary flex items-center gap-1.5" @click="handleAdd">
             <Plus class="w-4 h-4" />
@@ -167,6 +194,8 @@ function handleHandoverDetailEdit(record: BadgeRecord) {
     </header>
 
     <BatchMode v-if="mode === 'batch'" @back="mode = 'normal'" />
+
+    <LedgerPanel v-else-if="mode === 'ledger'" @view-record="handleLedgerViewRecord" />
 
     <div v-else class="flex flex-1 overflow-hidden">
       <FilterPanel />
@@ -195,6 +224,7 @@ function handleHandoverDetailEdit(record: BadgeRecord) {
               @toggle-select="store.toggleSelect"
               @register-handover="handleRegisterHandover"
               @view-handover="handleViewHandover"
+              @view-progress="handleViewProgress"
             />
           </div>
         </div>
@@ -223,6 +253,12 @@ function handleHandoverDetailEdit(record: BadgeRecord) {
       :record-id="handoverDetailId"
       @close="showHandoverDetail = false"
       @edit="handleHandoverDetailEdit"
+    />
+
+    <ProgressDetailModal
+      :visible="showProgressDetail"
+      :record-id="progressDetailId"
+      @close="showProgressDetail = false"
     />
   </div>
 </template>
