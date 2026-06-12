@@ -144,6 +144,18 @@
                       <span class="font-medium text-slate-700">{{ log.handoverInfo.receiverName }}</span>
                       <span class="text-slate-400">（{{ log.handoverInfo.handoverMethod }}）</span>
                     </div>
+                    <div v-if="log.appointmentInfo" class="flex items-center gap-1 text-slate-500">
+                      <CalendarClock class="w-3 h-3" />
+                      <span>预约领取：</span>
+                      <span class="font-medium text-slate-700">{{ formatDateTime(log.appointmentInfo.scheduledTime) }}</span>
+                      <span class="text-slate-400">（{{ log.appointmentInfo.pickupMethod }}）</span>
+                    </div>
+                    <div v-if="log.reissueInfo" class="flex items-center gap-1 text-slate-500">
+                      <ClipboardCheck class="w-3 h-3" />
+                      <span>补领/代领：</span>
+                      <span class="font-medium text-slate-700">{{ log.reissueInfo.actualReceiver }}</span>
+                      <span class="text-slate-400">（{{ log.reissueInfo.reason }}）</span>
+                    </div>
                   </div>
 
                   <div v-if="log.reason" class="mt-2 flex items-start gap-1.5">
@@ -189,7 +201,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { X, User, Building2, Workflow, Clock, Check, ArrowRight, StickyNote, Layers, Handshake, GitBranch } from 'lucide-vue-next'
+import { X, User, Building2, Workflow, Clock, Check, ArrowRight, StickyNote, Layers, Handshake, GitBranch, CalendarClock, ClipboardCheck } from 'lucide-vue-next'
 import { useBadgeStore } from '@/composables/useBadgeStore'
 import {
   STATUS_COLOR_MAP,

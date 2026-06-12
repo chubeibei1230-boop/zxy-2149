@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { X, User, Clock, Handshake, FileText, ClipboardList } from 'lucide-vue-next'
+import { X, User, Clock, Handshake, FileText, ClipboardList, CalendarClock, ClipboardCheck } from 'lucide-vue-next'
 import type { BadgeRecord } from '@/types'
 import { useBadgeStore } from '@/composables/useBadgeStore'
 
@@ -118,7 +118,81 @@ function handleClearHandover() {
             </div>
           </div>
 
-          <div v-else class="py-8 text-center">
+          <div v-if="record.appointment" class="mt-4 pt-4 border-t border-slate-100">
+            <div class="text-xs font-semibold text-blue-700 flex items-center gap-1.5 mb-3">
+              <CalendarClock class="w-3.5 h-3.5" />
+              预约信息
+            </div>
+            <div class="space-y-3">
+              <div class="flex items-start gap-3">
+                <Clock class="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+                <div class="flex-1">
+                  <p class="text-xs text-slate-500">预约领取时间</p>
+                  <p class="text-sm font-medium text-slate-800">{{ store.formatDateTime(record.appointment.scheduledTime) }}</p>
+                </div>
+              </div>
+              <div class="flex items-start gap-3">
+                <ClipboardList class="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+                <div class="flex-1">
+                  <p class="text-xs text-slate-500">预计领取方式</p>
+                  <p class="text-sm font-medium text-slate-800">{{ record.appointment.pickupMethod }}</p>
+                </div>
+              </div>
+              <div v-if="record.appointment.contactInfo" class="flex items-start gap-3">
+                <User class="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+                <div class="flex-1">
+                  <p class="text-xs text-slate-500">联系方式</p>
+                  <p class="text-sm font-medium text-slate-800">{{ record.appointment.contactInfo }}</p>
+                </div>
+              </div>
+              <div v-if="record.appointment.notes" class="flex items-start gap-3">
+                <FileText class="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+                <div class="flex-1">
+                  <p class="text-xs text-slate-500">预约备注</p>
+                  <p class="text-sm text-slate-700 whitespace-pre-wrap">{{ record.appointment.notes }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="record.reissue" class="mt-4 pt-4 border-t border-slate-100">
+            <div class="text-xs font-semibold text-violet-700 flex items-center gap-1.5 mb-3">
+              <ClipboardCheck class="w-3.5 h-3.5" />
+              补领/代领信息
+            </div>
+            <div class="space-y-3">
+              <div class="flex items-start gap-3">
+                <FileText class="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+                <div class="flex-1">
+                  <p class="text-xs text-slate-500">领取原因</p>
+                  <p class="text-sm font-medium text-slate-800">{{ record.reissue.reason }}</p>
+                </div>
+              </div>
+              <div class="flex items-start gap-3">
+                <User class="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+                <div class="flex-1">
+                  <p class="text-xs text-slate-500">实际领取人</p>
+                  <p class="text-sm font-medium text-slate-800">{{ record.reissue.actualReceiver }}</p>
+                </div>
+              </div>
+              <div class="flex items-start gap-3">
+                <FileText class="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+                <div class="flex-1">
+                  <p class="text-xs text-slate-500">经办人</p>
+                  <p class="text-sm font-medium text-slate-800">{{ record.reissue.handler }}</p>
+                </div>
+              </div>
+              <div v-if="record.reissue.processNotes" class="flex items-start gap-3">
+                <FileText class="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+                <div class="flex-1">
+                  <p class="text-xs text-slate-500">处理说明</p>
+                  <p class="text-sm text-slate-700 whitespace-pre-wrap">{{ record.reissue.processNotes }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="!handover && !record.appointment && !record.reissue" class="py-8 text-center">
             <Handshake class="w-10 h-10 mx-auto text-slate-300 mb-2" />
             <p class="text-sm text-slate-500">暂无交接信息</p>
             <p class="text-xs text-slate-400 mt-1">该胸卡尚未完成领取登记</p>

@@ -1,3 +1,39 @@
+export type PickupMethod = '现场自取' | '他人代领' | '快递邮寄' | '电子交接'
+
+export const PICKUP_METHOD_LIST: PickupMethod[] = ['现场自取', '他人代领', '快递邮寄', '电子交接']
+
+export type PickupStatus = '未预约' | '已预约' | '已逾期' | '已补领' | '已领取'
+
+export const PICKUP_STATUS_LIST: PickupStatus[] = ['未预约', '已预约', '已逾期', '已补领', '已领取']
+
+export const PICKUP_STATUS_COLOR_MAP: Record<PickupStatus, string> = {
+  '未预约': '#94A3B8',
+  '已预约': '#3B82F6',
+  '已逾期': '#F59E0B',
+  '已补领': '#8B5CF6',
+  '已领取': '#22C55E',
+}
+
+export interface PickupAppointment {
+  id: string
+  scheduledTime: string
+  contactInfo: string
+  pickupMethod: PickupMethod
+  notes: string
+  operator: string
+  createdAt: string
+}
+
+export interface PickupReissue {
+  id: string
+  reason: string
+  actualReceiver: string
+  handler: string
+  processNotes: string
+  operator: string
+  createdAt: string
+}
+
 export type BadgeStatus = '待设计' | '待打印' | '待领取' | '已领取' | '需重做'
 
 export type ProgressNodeType = '新增' | '设计' | '打印' | '待领取' | '领取交接' | '需重做'
@@ -41,6 +77,10 @@ export type OperationType =
   | 'assign_batch'
   | 'request_redo'
   | 'delete'
+  | 'register_appointment'
+  | 'cancel_appointment'
+  | 'mark_overdue'
+  | 'register_reissue'
 
 export const OPERATION_TYPE_LABELS: Record<OperationType, string> = {
   'create': '新增记录',
@@ -53,6 +93,10 @@ export const OPERATION_TYPE_LABELS: Record<OperationType, string> = {
   'assign_batch': '分配打印批次',
   'request_redo': '申请重做',
   'delete': '删除记录',
+  'register_appointment': '预约领取登记',
+  'cancel_appointment': '取消预约',
+  'mark_overdue': '标记逾期',
+  'register_reissue': '补领/代领登记',
 }
 
 export interface ProgressLog {
@@ -69,6 +113,8 @@ export interface ProgressLog {
   fieldChanges: Record<string, { old: string | null; new: string | null }>
   batchId?: string
   handoverInfo?: HandoverInfo
+  appointmentInfo?: PickupAppointment
+  reissueInfo?: PickupReissue
 }
 
 export type BadgeColor = '红色' | '蓝色' | '绿色' | '黄色' | '紫色' | '橙色' | '灰色'
@@ -100,6 +146,9 @@ export interface BadgeRecord {
   createdAt: string
   updatedAt: string
   handover: HandoverInfo | null
+  appointment: PickupAppointment | null
+  reissue: PickupReissue | null
+  pickupStatus: PickupStatus
   progressLogs: ProgressLog[]
   currentNode: ProgressNodeType
 }
@@ -137,6 +186,7 @@ export interface FilterState {
   handoverHandler: string
   handoverStartDate: string
   handoverEndDate: string
+  pickupStatus: string
   ledgerFilter: LedgerFilterState
 }
 

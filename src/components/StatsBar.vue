@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useBadgeStore } from '@/composables/useBadgeStore'
-import { Users, Printer, CheckCircle, AlertTriangle, ClipboardList, Clock, Handshake } from 'lucide-vue-next'
-import { STATUS_LIST, STATUS_COLOR_MAP } from '@/types'
+import { Users, Printer, CheckCircle, AlertTriangle, ClipboardList, Clock, Handshake, CalendarClock, ClipboardCheck } from 'lucide-vue-next'
+import { STATUS_LIST, STATUS_COLOR_MAP, PICKUP_STATUS_COLOR_MAP } from '@/types'
 import type { BadgeStatus } from '@/types'
 
 const store = useBadgeStore()
@@ -59,6 +59,41 @@ const statusIconMap: Record<BadgeStatus, typeof Users> = {
       <div class="flex flex-col">
         <span class="text-sm font-semibold text-slate-800">{{ store.stats.handoverStats.notReceived }}</span>
         <span class="text-xs text-slate-500">待交接</span>
+      </div>
+    </div>
+
+    <div class="w-px h-8 bg-slate-200 mx-1" />
+
+    <div
+      class="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-4 py-2.5 min-w-fit"
+      style="border-left: 3px solid #3B82F6"
+    >
+      <CalendarClock class="w-4 h-4 shrink-0 text-blue-500" />
+      <div class="flex flex-col">
+        <span class="text-sm font-semibold text-slate-800">{{ store.stats.pickupStats.appointed }}</span>
+        <span class="text-xs text-slate-500">已预约</span>
+      </div>
+    </div>
+
+    <div
+      class="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-4 py-2.5 min-w-fit"
+      :style="{ borderLeftWidth: '3px', borderLeftColor: PICKUP_STATUS_COLOR_MAP['已逾期'] }"
+    >
+      <AlertTriangle class="w-4 h-4 shrink-0 text-amber-500" />
+      <div class="flex flex-col">
+        <span class="text-sm font-semibold" :class="store.stats.pickupStats.overdue > 0 ? 'text-amber-600' : 'text-slate-800'">{{ store.stats.pickupStats.overdue }}</span>
+        <span class="text-xs text-slate-500">逾期</span>
+      </div>
+    </div>
+
+    <div
+      class="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-4 py-2.5 min-w-fit"
+      style="border-left: 3px solid #8B5CF6"
+    >
+      <ClipboardCheck class="w-4 h-4 shrink-0 text-violet-500" />
+      <div class="flex flex-col">
+        <span class="text-sm font-semibold text-slate-800">{{ store.stats.pickupStats.reissued }}</span>
+        <span class="text-xs text-slate-500">已补领</span>
       </div>
     </div>
 

@@ -87,6 +87,21 @@
       <div class="h-px bg-slate-100" />
 
       <div class="text-xs font-semibold text-slate-500 flex items-center gap-1.5">
+        <CalendarClock class="w-3.5 h-3.5" />
+        领取预约
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label class="text-xs font-medium text-slate-500">预约状态</label>
+        <select v-model="store.filter.pickupStatus" class="select-field">
+          <option value="">全部</option>
+          <option v-for="s in PICKUP_STATUS_LIST" :key="s" :value="s">{{ s }}</option>
+        </select>
+      </div>
+
+      <div class="h-px bg-slate-100" />
+
+      <div class="text-xs font-semibold text-slate-500 flex items-center gap-1.5">
         <Handshake class="w-3.5 h-3.5" />
         领取交接
       </div>
@@ -142,9 +157,9 @@
 </template>
 
 <script setup lang="ts">
-import { Filter, X, Search, Handshake, ClipboardList, Calendar } from 'lucide-vue-next'
+import { Filter, X, Search, Handshake, ClipboardList, Calendar, CalendarClock } from 'lucide-vue-next'
 import { useBadgeStore } from '@/composables/useBadgeStore'
-import { COLOR_LIST, ATTENDEE_TYPE_LIST, STATUS_LIST, COLOR_MAP } from '@/types'
+import { COLOR_LIST, ATTENDEE_TYPE_LIST, STATUS_LIST, COLOR_MAP, PICKUP_STATUS_LIST } from '@/types'
 import type { BadgeColor, AttendeeType, BadgeStatus } from '@/types'
 
 const store = useBadgeStore()

@@ -10,6 +10,10 @@ import type {
   ProgressNodeType,
   OperationType,
   LedgerFilterState,
+  PickupAppointment,
+  PickupReissue,
+  PickupStatus,
+  PickupMethod,
 } from '@/types'
 import {
   generateId,
@@ -559,6 +563,23 @@ function migrateRecord(record: any): BadgeRecord {
   if (!record.currentNode) {
     record.currentNode = STATUS_TO_PROGRESS_MAP[record.status]
   }
+  if (record.appointment === undefined) {
+    record.appointment = null
+  }
+  if (record.reissue === undefined) {
+    record.reissue = null
+  }
+  if (!record.pickupStatus) {
+    if (record.status === '已领取') {
+      record.pickupStatus = '已领取'
+    } else if (record.appointment) {
+      const scheduledTime = new Date(record.appointment.scheduledTime)
+      const now = new Date()
+      record.pickupStatus = scheduledTime < now ? '已逾期' : '已预约'
+    } else {
+      record.pickupStatus = '未预约'
+    }
+  }
   return record as BadgeRecord
 }
 
@@ -590,6 +611,8 @@ function createProgressLog(params: {
   fieldChanges?: Record<string, { old: string | null; new: string | null }>
   batchId?: string
   handoverInfo?: HandoverInfo
+  appointmentInfo?: PickupAppointment
+  reissueInfo?: PickupReissue
 }): ProgressLog {
   return {
     id: generateId(),
@@ -605,6 +628,8 @@ function createProgressLog(params: {
     fieldChanges: params.fieldChanges || {},
     batchId: params.batchId,
     handoverInfo: params.handoverInfo,
+    appointmentInfo: params.appointmentInfo,
+    reissueInfo: params.reissueInfo,
   }
 }
 
@@ -663,6 +688,7 @@ export const useBadgeStore = defineStore('badge', () => {
     handoverHandler: '',
     handoverStartDate: '',
     handoverEndDate: '',
+    pickupStatus: '',
     ledgerFilter: ledgerFilter.value,
   })
 
@@ -758,6 +784,7 @@ export const useBadgeStore = defineStore('badge', () => {
       }
       if (filter.value.status && r.status !== filter.value.status) return false
       if (filter.value.searchName && !r.name.includes(filter.value.searchName)) return false
+      if (filter.value.pickupStatus && r.pickupStatus !== filter.value.pickupStatus) return false
       if (filter.value.handoverStatus === '已领取') {
         if (!r.handover) return false
       } else if (filter.value.handoverStatus === '未领取') {
@@ -832,7 +859,13 @@ export const useBadgeStore = defineStore('badge', () => {
       received: records.value.filter((r) => r.handover).length,
       notReceived: records.value.filter((r) => !r.handover).length,
     }
-    return { total, byStatus, handoverStats }
+    const pickupStats = {
+      appointed: records.value.filter((r) => r.pickupStatus === '已预约').length,
+      overdue: records.value.filter((r) => r.pickupStatus === '已逾期').length,
+      reissued: records.value.filter((r) => r.pickupStatus === '已补领').length,
+      unappointed: records.value.filter((r) => r.pickupStatus === '未预约').length,
+    }
+    return { total, byStatus, handoverStats, pickupStats }
   })
 
   const checks = computed<CheckIssue[]>(() => {
@@ -960,6 +993,9 @@ export const useBadgeStore = defineStore('badge', () => {
       updatedAt: now,
       currentNode: initialNode,
       progressLogs: [createLog],
+      appointment: data.appointment || null,
+      reissue: data.reissue || null,
+      pickupStatus: data.pickupStatus || '未预约',
     }
     record.progressLogs[0].recordId = record.id
 
@@ -1123,6 +1159,7 @@ export const useBadgeStore = defineStore('badge', () => {
           status: '已领取',
           currentNode: '领取交接',
           handover: handoverInfo,
+          pickupStatus: '已领取',
           updatedAt: now,
           progressLogs: [
             ...oldRecord.progressLogs,
@@ -1139,6 +1176,7 @@ export const useBadgeStore = defineStore('badge', () => {
                 '状态': { old: oldRecord.status, new: '已领取' },
                 '领取人': { old: null, new: handoverInfo.receiverName },
                 '交接方式': { old: null, new: handoverInfo.handoverMethod },
+                '领取预约状态': { old: oldRecord.pickupStatus, new: '已领取' },
               },
             }),
           ],
@@ -1152,12 +1190,14 @@ export const useBadgeStore = defineStore('badge', () => {
     if (idx !== -1) {
       const oldRecord = records.value[idx]
       const operator = oldRecord.responsiblePerson || DEFAULT_OPERATOR
+      const newPickupStatus = oldRecord.appointment ? '已预约' : '未预约'
 
       records.value[idx] = {
         ...oldRecord,
         handover: null,
         status: '待领取',
         currentNode: '待领取',
+        pickupStatus: newPickupStatus,
         updatedAt: new Date().toISOString(),
         progressLogs: [
           ...oldRecord.progressLogs,
@@ -1172,6 +1212,7 @@ export const useBadgeStore = defineStore('badge', () => {
             fieldChanges: {
               '状态': { old: oldRecord.status, new: '待领取' },
               '交接信息': { old: '已登记', new: null },
+              '领取预约状态': { old: oldRecord.pickupStatus, new: newPickupStatus },
             },
           }),
         ],
@@ -1183,6 +1224,185 @@ export const useBadgeStore = defineStore('badge', () => {
     records.value = records.value.filter((r) => !ids.includes(r.id))
     for (const id of ids) {
       selectedIds.value.delete(id)
+    }
+  }
+
+  function registerAppointment(
+    id: string,
+    appointmentData: {
+      scheduledTime: string
+      contactInfo: string
+      pickupMethod: PickupMethod
+      notes: string
+      operator: string
+    },
+  ) {
+    const idx = records.value.findIndex((r) => r.id === id)
+    if (idx === -1) return
+    const oldRecord = records.value[idx]
+    const now = new Date().toISOString()
+    const appointment: PickupAppointment = {
+      id: generateId(),
+      scheduledTime: new Date(appointmentData.scheduledTime).toISOString(),
+      contactInfo: appointmentData.contactInfo.trim(),
+      pickupMethod: appointmentData.pickupMethod,
+      notes: appointmentData.notes.trim(),
+      operator: appointmentData.operator.trim(),
+      createdAt: now,
+    }
+    const newPickupStatus: PickupStatus = '已预约'
+
+    records.value[idx] = {
+      ...oldRecord,
+      appointment,
+      pickupStatus: newPickupStatus,
+      updatedAt: now,
+      progressLogs: [
+        ...oldRecord.progressLogs,
+        createProgressLog({
+          recordId: id,
+          operationType: 'register_appointment',
+          nodeType: oldRecord.currentNode,
+          previousStatus: oldRecord.status,
+          newStatus: oldRecord.status,
+          operator: appointmentData.operator.trim(),
+          reason: `预约领取：${formatDateTime(appointment.scheduledTime)}，方式：${appointmentData.pickupMethod}`,
+          appointmentInfo: appointment,
+          fieldChanges: {
+            '领取预约状态': { old: oldRecord.pickupStatus, new: newPickupStatus },
+            '预约领取时间': { old: null, new: formatDateTime(appointment.scheduledTime) },
+            '预计领取方式': { old: null, new: appointmentData.pickupMethod },
+          },
+        }),
+      ],
+    }
+  }
+
+  function cancelAppointment(id: string, operator?: string) {
+    const idx = records.value.findIndex((r) => r.id === id)
+    if (idx === -1) return
+    const oldRecord = records.value[idx]
+    if (!oldRecord.appointment) return
+    const now = new Date().toISOString()
+    const newPickupStatus: PickupStatus = '未预约'
+
+    records.value[idx] = {
+      ...oldRecord,
+      appointment: null,
+      pickupStatus: newPickupStatus,
+      updatedAt: now,
+      progressLogs: [
+        ...oldRecord.progressLogs,
+        createProgressLog({
+          recordId: id,
+          operationType: 'cancel_appointment',
+          nodeType: oldRecord.currentNode,
+          previousStatus: oldRecord.status,
+          newStatus: oldRecord.status,
+          operator: operator || oldRecord.responsiblePerson || DEFAULT_OPERATOR,
+          reason: '取消预约领取',
+          fieldChanges: {
+            '领取预约状态': { old: oldRecord.pickupStatus, new: newPickupStatus },
+          },
+        }),
+      ],
+    }
+  }
+
+  function markOverdue(id: string, operator?: string) {
+    const idx = records.value.findIndex((r) => r.id === id)
+    if (idx === -1) return
+    const oldRecord = records.value[idx]
+    if (oldRecord.pickupStatus !== '已预约') return
+    const now = new Date().toISOString()
+    const newPickupStatus: PickupStatus = '已逾期'
+
+    records.value[idx] = {
+      ...oldRecord,
+      pickupStatus: newPickupStatus,
+      updatedAt: now,
+      progressLogs: [
+        ...oldRecord.progressLogs,
+        createProgressLog({
+          recordId: id,
+          operationType: 'mark_overdue',
+          nodeType: oldRecord.currentNode,
+          previousStatus: oldRecord.status,
+          newStatus: oldRecord.status,
+          operator: operator || oldRecord.responsiblePerson || DEFAULT_OPERATOR,
+          reason: `预约领取时间已过（${oldRecord.appointment ? formatDateTime(oldRecord.appointment.scheduledTime) : '-'}），标记逾期`,
+          fieldChanges: {
+            '领取预约状态': { old: oldRecord.pickupStatus, new: newPickupStatus },
+          },
+        }),
+      ],
+    }
+  }
+
+  function registerReissue(
+    id: string,
+    reissueData: {
+      reason: string
+      actualReceiver: string
+      handler: string
+      processNotes: string
+      operator: string
+    },
+  ) {
+    const idx = records.value.findIndex((r) => r.id === id)
+    if (idx === -1) return
+    const oldRecord = records.value[idx]
+    const now = new Date().toISOString()
+    const reissue: PickupReissue = {
+      id: generateId(),
+      reason: reissueData.reason.trim(),
+      actualReceiver: reissueData.actualReceiver.trim(),
+      handler: reissueData.handler.trim(),
+      processNotes: reissueData.processNotes.trim(),
+      operator: reissueData.operator.trim(),
+      createdAt: now,
+    }
+    const newPickupStatus: PickupStatus = '已补领'
+
+    records.value[idx] = {
+      ...oldRecord,
+      reissue,
+      pickupStatus: newPickupStatus,
+      updatedAt: now,
+      progressLogs: [
+        ...oldRecord.progressLogs,
+        createProgressLog({
+          recordId: id,
+          operationType: 'register_reissue',
+          nodeType: oldRecord.currentNode,
+          previousStatus: oldRecord.status,
+          newStatus: oldRecord.status,
+          operator: reissueData.operator.trim(),
+          reason: `补领/代领：${reissueData.reason}，实际领取人：${reissueData.actualReceiver}`,
+          reissueInfo: reissue,
+          fieldChanges: {
+            '领取预约状态': { old: oldRecord.pickupStatus, new: newPickupStatus },
+            '补领原因': { old: null, new: reissueData.reason },
+            '实际领取人': { old: null, new: reissueData.actualReceiver },
+          },
+        }),
+      ],
+    }
+  }
+
+  function checkOverdueAppointments() {
+    const now = new Date()
+    for (let i = 0; i < records.value.length; i++) {
+      const r = records.value[i]
+      if (r.pickupStatus === '已预约' && r.appointment) {
+        const scheduledTime = new Date(r.appointment.scheduledTime)
+        if (scheduledTime < now) {
+          records.value[i] = {
+            ...r,
+            pickupStatus: '已逾期',
+          }
+        }
+      }
     }
   }
 
@@ -1221,6 +1441,7 @@ export const useBadgeStore = defineStore('badge', () => {
       handoverHandler: '',
       handoverStartDate: '',
       handoverEndDate: '',
+      pickupStatus: '',
       ledgerFilter: ledgerFilter.value,
     }
   }
@@ -1252,6 +1473,7 @@ export const useBadgeStore = defineStore('badge', () => {
       handoverHandler: '',
       handoverStartDate: '',
       handoverEndDate: '',
+      pickupStatus: '',
       ledgerFilter: ledgerFilter.value,
     }
     if (issue.type === 'duplicate_name') {
@@ -1406,6 +1628,28 @@ export const useBadgeStore = defineStore('badge', () => {
       })
     }
 
+    if (record.pickupStatus === '已预约' && record.appointment) {
+      alerts.push({
+        type: 'success',
+        message: `已预约领取：${formatDateTime(record.appointment.scheduledTime)}，方式：${record.appointment.pickupMethod}${record.appointment.contactInfo ? '，联系方式：' + record.appointment.contactInfo : ''}`,
+      })
+    }
+
+    if (record.pickupStatus === '已逾期') {
+      const overdueTime = record.appointment ? formatDateTime(record.appointment.scheduledTime) : '-'
+      alerts.push({
+        type: 'warning',
+        message: `预约逾期：预约领取时间 ${overdueTime} 已过，请安排补领或重新预约`,
+      })
+    }
+
+    if (record.pickupStatus === '已补领' && record.reissue) {
+      alerts.push({
+        type: 'success',
+        message: `已补领登记：实际领取人 ${record.reissue.actualReceiver}，经办人 ${record.reissue.handler}，原因：${record.reissue.reason}`,
+      })
+    }
+
     return alerts
   }
 
@@ -1444,6 +1688,11 @@ export const useBadgeStore = defineStore('badge', () => {
     batchRegisterHandover,
     clearHandover,
     deleteRecords,
+    registerAppointment,
+    cancelAppointment,
+    markOverdue,
+    registerReissue,
+    checkOverdueAppointments,
     toggleSelect,
     selectAll,
     clearSelection,

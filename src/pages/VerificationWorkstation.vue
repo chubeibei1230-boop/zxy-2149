@@ -19,6 +19,8 @@ import {
   History,
   FileText,
   RefreshCw,
+  CalendarClock,
+  ClipboardCheck,
 } from 'lucide-vue-next'
 import {
   COLOR_MAP,
@@ -26,9 +28,13 @@ import {
   COLOR_LIST,
   PROGRESS_NODE_ORDER,
   PROGRESS_NODE_LIST,
+  PICKUP_STATUS_COLOR_MAP,
 } from '@/types'
 import VerificationModal from '@/components/VerificationModal.vue'
 import ProgressDetailModal from '@/components/ProgressDetailModal.vue'
+import AppointmentModal from '@/components/AppointmentModal.vue'
+import ReissueModal from '@/components/ReissueModal.vue'
+import AppointmentDetailModal from '@/components/AppointmentDetailModal.vue'
 
 const store = useBadgeStore()
 
@@ -43,6 +49,13 @@ const showVerificationModal = ref(false)
 const selectedRecord = ref<BadgeRecord | null>(null)
 const showProgressDetail = ref(false)
 const progressDetailId = ref<string | null>(null)
+
+const showAppointmentModal = ref(false)
+const appointmentRecord = ref<BadgeRecord | null>(null)
+const showReissueModal = ref(false)
+const reissueRecord = ref<BadgeRecord | null>(null)
+const showAppointmentDetail = ref(false)
+const appointmentDetailRecord = ref<BadgeRecord | null>(null)
 
 const searchResults = computed(() => {
   const hasSearch = searchForm.name || searchForm.company || searchForm.printBatch || searchForm.badgeColor
@@ -69,6 +82,13 @@ const searchResults = computed(() => {
   })
 
   return results.sort((a, b) => {
+    const pickupPriority: Record<string, number> = {
+      '已预约': 0,
+      '已逾期': 1,
+      '已补领': 2,
+      '未预约': 3,
+      '已领取': 4,
+    }
     const statusPriority: Record<BadgeStatus, number> = {
       '待领取': 0,
       '已领取': 1,
@@ -79,6 +99,9 @@ const searchResults = computed(() => {
     const prioA = statusPriority[a.status] ?? 5
     const prioB = statusPriority[b.status] ?? 5
     if (prioA !== prioB) return prioA - prioB
+    const pickA = pickupPriority[a.pickupStatus] ?? 5
+    const pickB = pickupPriority[b.pickupStatus] ?? 5
+    if (pickA !== pickB) return pickA - pickB
     return a.name.localeCompare(b.name)
   })
 })
@@ -189,6 +212,35 @@ function handleVerificationSaved() {
 function handleViewProgress(id: string) {
   progressDetailId.value = id
   showProgressDetail.value = true
+}
+
+function handleRegisterAppointment(record: BadgeRecord) {
+  appointmentRecord.value = record
+  showAppointmentModal.value = true
+}
+
+function handleViewAppointment(record: BadgeRecord) {
+  appointmentDetailRecord.value = record
+  showAppointmentDetail.value = true
+}
+
+function handleCancelAppointment(record: BadgeRecord) {
+  if (confirm('确定取消该预约吗？')) {
+    store.cancelAppointment(record.id)
+    appointmentDetailRecord.value = null
+    showAppointmentDetail.value = false
+  }
+}
+
+function handleMarkOverdue(record: BadgeRecord) {
+  store.markOverdue(record.id)
+  appointmentDetailRecord.value = null
+  showAppointmentDetail.value = false
+}
+
+function handleRegisterReissue(record: BadgeRecord) {
+  reissueRecord.value = record
+  showReissueModal.value = true
 }
 
 function goBack() {
@@ -367,6 +419,16 @@ function goBack() {
                           {{ record.status }}
                         </span>
                         <span
+                          v-if="record.pickupStatus !== '未预约' && record.pickupStatus !== '已领取'"
+                          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium text-white"
+                          :style="{ backgroundColor: PICKUP_STATUS_COLOR_MAP[record.pickupStatus] }"
+                        >
+                          <CalendarClock v-if="record.pickupStatus === '已预约'" class="w-3 h-3" />
+                          <AlertTriangle v-else-if="record.pickupStatus === '已逾期'" class="w-3 h-3" />
+                          <ClipboardCheck v-else-if="record.pickupStatus === '已补领'" class="w-3 h-3" />
+                          {{ record.pickupStatus }}
+                        </span>
+                        <span
                           class="inline-flex items-center gap-1 text-xs bg-slate-100 text-slate-600 rounded px-1.5 py-0.5"
                         >
                           <span
@@ -421,6 +483,27 @@ function goBack() {
                       </span>
                     </div>
 
+                    <div v-if="record.appointment && !record.handover" class="mt-2 flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
+                      <CalendarClock class="w-4 h-4 shrink-0" />
+                      <span>
+                        预约领取：{{ store.formatDateTime(record.appointment.scheduledTime) }} · {{ record.appointment.pickupMethod }}
+                        <span v-if="record.appointment.contactInfo"> · 联系方式：{{ record.appointment.contactInfo }}</span>
+                      </span>
+                      <button
+                        class="ml-auto text-xs text-blue-600 hover:text-blue-800 font-medium shrink-0"
+                        @click="handleViewAppointment(record)"
+                      >
+                        查看详情
+                      </button>
+                    </div>
+
+                    <div v-if="record.reissue" class="mt-2 flex items-center gap-2 px-3 py-2 bg-violet-50 border border-violet-200 rounded-lg text-sm text-violet-700">
+                      <ClipboardCheck class="w-4 h-4 shrink-0" />
+                      <span>
+                        已补领登记：{{ record.reissue.actualReceiver }} · {{ record.reissue.reason }}
+                      </span>
+                    </div>
+
                     <div class="mt-3 flex items-center gap-2 text-xs text-slate-400">
                       <History class="w-3.5 h-3.5" />
                       <span class="truncate">最新处理：{{ getLatestSummary(record) }}</span>
@@ -443,8 +526,34 @@ function goBack() {
                     <Zap class="w-4 h-4" />
                     一键核销
                   </button>
+                  <div class="flex items-center gap-2">
+                    <button
+                      v-if="record.status === '待领取' && !record.appointment && !record.reissue"
+                      class="px-3 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors text-xs font-medium flex items-center gap-1.5"
+                      @click="handleRegisterAppointment(record)"
+                    >
+                      <CalendarClock class="w-3.5 h-3.5" />
+                      预约
+                    </button>
+                    <button
+                      v-if="record.status === '待领取' && (record.appointment || record.reissue)"
+                      class="px-3 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors text-xs font-medium flex items-center gap-1.5"
+                      @click="handleViewAppointment(record)"
+                    >
+                      <CalendarClock class="w-3.5 h-3.5" />
+                      预约详情
+                    </button>
+                    <button
+                      v-if="record.status === '待领取' && !record.reissue"
+                      class="px-3 py-2 bg-violet-50 text-violet-700 border border-violet-200 rounded-lg hover:bg-violet-100 transition-colors text-xs font-medium flex items-center gap-1.5"
+                      @click="handleRegisterReissue(record)"
+                    >
+                      <ClipboardCheck class="w-3.5 h-3.5" />
+                      补领
+                    </button>
+                  </div>
                   <button
-                    v-else
+                    v-if="record.status !== '待领取'"
                     class="px-5 py-3 bg-slate-100 text-slate-400 rounded-lg cursor-not-allowed font-medium flex items-center gap-2"
                     disabled
                   >
@@ -497,6 +606,30 @@ function goBack() {
       :visible="showProgressDetail"
       :record-id="progressDetailId"
       @close="showProgressDetail = false"
+    />
+
+    <AppointmentModal
+      :visible="showAppointmentModal"
+      :record="appointmentRecord"
+      @close="showAppointmentModal = false"
+      @saved="showAppointmentModal = false; appointmentRecord = null"
+    />
+
+    <ReissueModal
+      :visible="showReissueModal"
+      :record="reissueRecord"
+      @close="showReissueModal = false"
+      @saved="showReissueModal = false; reissueRecord = null"
+    />
+
+    <AppointmentDetailModal
+      :visible="showAppointmentDetail"
+      :record="appointmentDetailRecord"
+      @close="showAppointmentDetail = false; appointmentDetailRecord = null"
+      @register-appointment="showAppointmentDetail = false; appointmentDetailRecord = null; handleRegisterAppointment($event)"
+      @cancel-appointment="handleCancelAppointment"
+      @register-reissue="showAppointmentDetail = false; appointmentDetailRecord = null; handleRegisterReissue($event)"
+      @mark-overdue="handleMarkOverdue"
     />
   </div>
 </template>

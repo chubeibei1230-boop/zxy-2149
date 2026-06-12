@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { reactive, watch, computed } from 'vue'
-import { X, User, Clock, FileText, Handshake, ClipboardList, CheckCircle, AlertTriangle, Zap } from 'lucide-vue-next'
-import { HANDOVER_METHOD_LIST, COLOR_MAP } from '@/types'
+import { X, User, Clock, FileText, Handshake, ClipboardList, CheckCircle, AlertTriangle, Zap, CalendarClock } from 'lucide-vue-next'
+import { HANDOVER_METHOD_LIST, COLOR_MAP, PICKUP_STATUS_COLOR_MAP } from '@/types'
 import type { HandoverInfo, HandoverMethod, BadgeRecord } from '@/types'
 import { useBadgeStore } from '@/composables/useBadgeStore'
 
@@ -146,6 +146,10 @@ function handleSave() {
               <AlertTriangle class="w-4 h-4 text-blue-500" />
               <span class="text-sm text-blue-700 font-medium">待领取</span>
             </div>
+            <div v-if="record.appointment" class="flex items-center gap-2 px-3 py-2 bg-blue-100 border border-blue-300 rounded-lg">
+              <CalendarClock class="w-4 h-4 text-blue-600" />
+              <span class="text-sm text-blue-700 font-medium">{{ record.pickupStatus }}</span>
+            </div>
           </div>
         </div>
 
@@ -165,6 +169,20 @@ function handleSave() {
         </div>
 
         <div class="px-6 py-5 space-y-5">
+          <div v-if="record.appointment" class="p-3 bg-blue-50 border border-blue-200 rounded-lg space-y-1.5">
+            <div class="flex items-center gap-1.5 text-xs font-semibold text-blue-700">
+              <CalendarClock class="w-3.5 h-3.5" />
+              预约领取信息
+            </div>
+            <div class="text-sm text-blue-600">
+              预约时间：{{ store.formatDateTime(record.appointment.scheduledTime) }} · 领取方式：{{ record.appointment.pickupMethod }}
+              <span v-if="record.appointment.contactInfo"> · 联系方式：{{ record.appointment.contactInfo }}</span>
+            </div>
+            <div v-if="record.appointment.notes" class="text-xs text-blue-500">
+              备注：{{ record.appointment.notes }}
+            </div>
+          </div>
+
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="block text-sm font-medium text-slate-700 mb-1.5 flex items-center gap-1.5">

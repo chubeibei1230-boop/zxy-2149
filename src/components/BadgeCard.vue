@@ -79,6 +79,17 @@
         >
           {{ record.status }}
         </span>
+
+        <span
+          v-if="record.pickupStatus !== '未预约' && record.pickupStatus !== '已领取'"
+          class="inline-flex items-center gap-1 text-xs rounded px-1.5 py-0.5 text-white"
+          :style="{ backgroundColor: PICKUP_STATUS_COLOR_MAP[record.pickupStatus] }"
+        >
+          <CalendarClock v-if="record.pickupStatus === '已预约'" class="w-3 h-3" />
+          <AlertTriangle v-else-if="record.pickupStatus === '已逾期'" class="w-3 h-3" />
+          <ClipboardCheck v-else-if="record.pickupStatus === '已补领'" class="w-3 h-3" />
+          {{ record.pickupStatus }}
+        </span>
       </div>
 
       <div class="mt-1">
@@ -114,6 +125,20 @@
         <Handshake class="w-3.5 h-3.5 text-green-500 shrink-0" />
         <span class="text-green-600">
           {{ record.handover.receiverName }} · {{ record.handover.handoverMethod }} · {{ record.handover.handler }}
+        </span>
+      </div>
+
+      <div v-if="record.appointment && !record.handover" class="flex items-center gap-2 text-xs">
+        <CalendarClock class="w-3.5 h-3.5 text-blue-500 shrink-0" />
+        <span class="text-blue-600">
+          预约：{{ store.formatDateTime(record.appointment.scheduledTime) }} · {{ record.appointment.pickupMethod }}
+        </span>
+      </div>
+
+      <div v-if="record.reissue" class="flex items-center gap-2 text-xs">
+        <ClipboardCheck class="w-3.5 h-3.5 text-violet-500 shrink-0" />
+        <span class="text-violet-600">
+          补领：{{ record.reissue.actualReceiver }} · {{ record.reissue.reason }}
         </span>
       </div>
 
@@ -158,6 +183,22 @@
         <Handshake class="w-4 h-4" />
       </button>
       <button
+        v-if="record.status === '待领取' && record.pickupStatus !== '已领取'"
+        class="p-1.5 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-500 transition-colors"
+        @click="record.appointment || record.reissue ? $emit('view-appointment', record) : $emit('register-appointment', record)"
+        :title="record.appointment || record.reissue ? '查看预约' : '登记预约'"
+      >
+        <CalendarClock class="w-4 h-4" />
+      </button>
+      <button
+        v-if="record.status === '待领取' && !record.handover && !record.reissue"
+        class="p-1.5 rounded-lg hover:bg-violet-50 text-slate-400 hover:text-violet-500 transition-colors"
+        @click="$emit('register-reissue', record)"
+        title="补领/代领"
+      >
+        <ClipboardCheck class="w-4 h-4" />
+      </button>
+      <button
         class="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-red-500 transition-colors"
         @click="$emit('delete', record.id)"
         title="删除"
@@ -176,6 +217,7 @@ import {
   STATUS_COLOR_MAP,
   PROGRESS_NODE_LIST,
   PROGRESS_NODE_ORDER,
+  PICKUP_STATUS_COLOR_MAP,
 } from '@/types'
 import {
   Edit2,
@@ -190,6 +232,8 @@ import {
   GitBranch,
   Check,
   AlertTriangle,
+  CalendarClock,
+  ClipboardCheck,
 } from 'lucide-vue-next'
 import { useBadgeStore } from '@/composables/useBadgeStore'
 
@@ -242,5 +286,8 @@ defineEmits<{
   'register-handover': [record: BadgeRecord]
   'view-handover': [id: string]
   'view-progress': [id: string]
+  'register-appointment': [record: BadgeRecord]
+  'view-appointment': [record: BadgeRecord]
+  'register-reissue': [record: BadgeRecord]
 }>()
 </script>

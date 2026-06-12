@@ -13,8 +13,11 @@ import HandoverModal from '@/components/HandoverModal.vue'
 import HandoverDetailModal from '@/components/HandoverDetailModal.vue'
 import ProgressDetailModal from '@/components/ProgressDetailModal.vue'
 import LedgerPanel from '@/components/LedgerPanel.vue'
+import AppointmentModal from '@/components/AppointmentModal.vue'
+import ReissueModal from '@/components/ReissueModal.vue'
+import AppointmentDetailModal from '@/components/AppointmentDetailModal.vue'
 import { useRouter } from 'vue-router'
-import { Plus, LayoutGrid, Package, Search, Handshake, GitBranch, BookOpen, QrCode } from 'lucide-vue-next'
+import { Plus, LayoutGrid, Package, Search, Handshake, GitBranch, BookOpen, QrCode, CalendarClock, ClipboardCheck } from 'lucide-vue-next'
 
 const router = useRouter()
 const store = useBadgeStore()
@@ -34,6 +37,13 @@ const handoverDetailId = ref<string | null>(null)
 
 const showProgressDetail = ref(false)
 const progressDetailId = ref<string | null>(null)
+
+const showAppointmentModal = ref(false)
+const appointmentRecord = ref<BadgeRecord | null>(null)
+const showReissueModal = ref(false)
+const reissueRecord = ref<BadgeRecord | null>(null)
+const showAppointmentDetail = ref(false)
+const appointmentDetailRecord = ref<BadgeRecord | null>(null)
 
 const colorOrder = ['红色', '蓝色', '绿色', '黄色', '紫色', '橙色', '灰色']
 
@@ -132,6 +142,35 @@ function handleHandoverDetailEdit(record: BadgeRecord) {
   handoverRecordIds.value = [record.id]
   handoverDefaultRecord.value = record
   showHandoverModal.value = true
+}
+
+function handleRegisterAppointment(record: BadgeRecord) {
+  appointmentRecord.value = record
+  showAppointmentModal.value = true
+}
+
+function handleViewAppointment(record: BadgeRecord) {
+  appointmentDetailRecord.value = record
+  showAppointmentDetail.value = true
+}
+
+function handleCancelAppointment(record: BadgeRecord) {
+  if (confirm('确定取消该预约吗？')) {
+    store.cancelAppointment(record.id)
+    showAppointmentDetail.value = false
+    appointmentDetailRecord.value = null
+  }
+}
+
+function handleMarkOverdue(record: BadgeRecord) {
+  store.markOverdue(record.id)
+  showAppointmentDetail.value = false
+  appointmentDetailRecord.value = null
+}
+
+function handleRegisterReissue(record: BadgeRecord) {
+  reissueRecord.value = record
+  showReissueModal.value = true
 }
 
 function handleLedgerViewRecord(id: string) {
@@ -234,6 +273,9 @@ function handleLedgerViewRecord(id: string) {
               @register-handover="handleRegisterHandover"
               @view-handover="handleViewHandover"
               @view-progress="handleViewProgress"
+              @register-appointment="handleRegisterAppointment"
+              @view-appointment="handleViewAppointment"
+              @register-reissue="handleRegisterReissue"
             />
           </div>
         </div>
@@ -268,6 +310,30 @@ function handleLedgerViewRecord(id: string) {
       :visible="showProgressDetail"
       :record-id="progressDetailId"
       @close="showProgressDetail = false"
+    />
+
+    <AppointmentModal
+      :visible="showAppointmentModal"
+      :record="appointmentRecord"
+      @close="showAppointmentModal = false"
+      @saved="showAppointmentModal = false; appointmentRecord = null"
+    />
+
+    <ReissueModal
+      :visible="showReissueModal"
+      :record="reissueRecord"
+      @close="showReissueModal = false"
+      @saved="showReissueModal = false; reissueRecord = null"
+    />
+
+    <AppointmentDetailModal
+      :visible="showAppointmentDetail"
+      :record="appointmentDetailRecord"
+      @close="showAppointmentDetail = false; appointmentDetailRecord = null"
+      @register-appointment="showAppointmentDetail = false; appointmentDetailRecord = null; handleRegisterAppointment($event)"
+      @cancel-appointment="handleCancelAppointment"
+      @register-reissue="showAppointmentDetail = false; appointmentDetailRecord = null; handleRegisterReissue($event)"
+      @mark-overdue="handleMarkOverdue"
     />
   </div>
 </template>

@@ -28,6 +28,9 @@
         @register-handover="$emit('register-handover', $event)"
         @view-handover="$emit('view-handover', $event)"
         @view-progress="$emit('view-progress', $event)"
+        @register-appointment="$emit('register-appointment', $event)"
+        @view-appointment="$emit('view-appointment', $event)"
+        @register-reissue="$emit('register-reissue', $event)"
       />
     </div>
   </div>
@@ -53,6 +56,9 @@ defineEmits<{
   'register-handover': [record: BadgeRecord]
   'view-handover': [id: string]
   'view-progress': [id: string]
+  'register-appointment': [record: BadgeRecord]
+  'view-appointment': [record: BadgeRecord]
+  'register-reissue': [record: BadgeRecord]
 }>()
 
 const collapsed = ref(false)
