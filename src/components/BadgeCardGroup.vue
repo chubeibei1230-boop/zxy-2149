@@ -25,6 +25,8 @@
         @edit="$emit('edit', $event)"
         @delete="$emit('delete', $event)"
         @toggle-select="$emit('toggle-select', $event)"
+        @register-handover="$emit('register-handover', $event)"
+        @view-handover="$emit('view-handover', $event)"
       />
     </div>
   </div>
@@ -47,6 +49,8 @@ defineEmits<{
   edit: [record: BadgeRecord]
   delete: [id: string]
   'toggle-select': [id: string]
+  'register-handover': [record: BadgeRecord]
+  'view-handover': [id: string]
 }>()
 
 const collapsed = ref(false)

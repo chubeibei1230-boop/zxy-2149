@@ -9,7 +9,9 @@ import BadgeCardGroup from '@/components/BadgeCardGroup.vue'
 import RecordFormModal from '@/components/RecordFormModal.vue'
 import BatchToolbar from '@/components/BatchToolbar.vue'
 import BatchMode from '@/components/BatchMode.vue'
-import { Plus, LayoutGrid, Package, Search } from 'lucide-vue-next'
+import HandoverModal from '@/components/HandoverModal.vue'
+import HandoverDetailModal from '@/components/HandoverDetailModal.vue'
+import { Plus, LayoutGrid, Package, Search, Handshake } from 'lucide-vue-next'
 
 const store = useBadgeStore()
 const { filter } = toRefs(store)
@@ -18,6 +20,13 @@ const showForm = ref(false)
 const editingRecord = ref<BadgeRecord | null>(null)
 const mode = ref<'normal' | 'batch'>('normal')
 const scrollContainer = ref<HTMLElement | null>(null)
+
+const showHandoverModal = ref(false)
+const handoverRecordIds = ref<string[]>([])
+const handoverDefaultRecord = ref<BadgeRecord | null>(null)
+
+const showHandoverDetail = ref(false)
+const handoverDetailId = ref<string | null>(null)
 
 const colorOrder = ['红色', '蓝色', '绿色', '黄色', '紫色', '橙色', '灰色']
 
@@ -68,7 +77,8 @@ function handleDelete(id: string) {
 
 function handleSave(data: Omit<BadgeRecord, 'id' | 'createdAt' | 'updatedAt'>) {
   if (editingRecord.value) {
-    store.updateRecord(editingRecord.value.id, data)
+    const { handover, ...rest } = data
+    store.updateRecord(editingRecord.value.id, { ...rest, handover: editingRecord.value.handover })
   } else {
     store.addRecord(data)
   }
@@ -79,6 +89,34 @@ function handleSave(data: Omit<BadgeRecord, 'id' | 'createdAt' | 'updatedAt'>) {
 function handleClose() {
   showForm.value = false
   editingRecord.value = null
+}
+
+function handleRegisterHandover(record: BadgeRecord) {
+  handoverRecordIds.value = [record.id]
+  handoverDefaultRecord.value = record
+  showHandoverModal.value = true
+}
+
+function handleViewHandover(id: string) {
+  handoverDetailId.value = id
+  showHandoverDetail.value = true
+}
+
+function handleBatchRegisterHandover() {
+  if (store.selectedIds.size === 0) return
+  handoverRecordIds.value = Array.from(store.selectedIds)
+  handoverDefaultRecord.value = null
+  showHandoverModal.value = true
+}
+
+function handleHandoverSaved() {
+  store.clearSelection()
+}
+
+function handleHandoverDetailEdit(record: BadgeRecord) {
+  handoverRecordIds.value = [record.id]
+  handoverDefaultRecord.value = record
+  showHandoverModal.value = true
 }
 </script>
 
@@ -92,7 +130,7 @@ function handleClose() {
           </div>
           <div>
             <h1 class="text-base font-semibold text-slate-800">展会胸卡制作清单</h1>
-            <p class="text-xs text-slate-400">管理胸卡设计、打印与领取全流程</p>
+            <p class="text-xs text-slate-400">管理胸卡设计、打印、领取与交接全流程</p>
           </div>
         </div>
         <div class="flex items-center gap-2">
@@ -155,11 +193,13 @@ function handleClose() {
               @edit="handleEdit"
               @delete="handleDelete"
               @toggle-select="store.toggleSelect"
+              @register-handover="handleRegisterHandover"
+              @view-handover="handleViewHandover"
             />
           </div>
         </div>
 
-        <BatchToolbar />
+        <BatchToolbar @batch-handover="handleBatchRegisterHandover" />
       </main>
     </div>
 
@@ -168,6 +208,21 @@ function handleClose() {
       :record="editingRecord"
       @close="handleClose"
       @save="handleSave"
+    />
+
+    <HandoverModal
+      :visible="showHandoverModal"
+      :record-ids="handoverRecordIds"
+      :default-record="handoverDefaultRecord"
+      @close="showHandoverModal = false"
+      @saved="handleHandoverSaved"
+    />
+
+    <HandoverDetailModal
+      :visible="showHandoverDetail"
+      :record-id="handoverDetailId"
+      @close="showHandoverDetail = false"
+      @edit="handleHandoverDetailEdit"
     />
   </div>
 </template>

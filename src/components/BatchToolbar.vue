@@ -39,6 +39,16 @@
     <div class="w-px h-5 bg-slate-200" />
 
     <button
+      class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-md text-white bg-green-500 hover:bg-green-600 transition-colors"
+      @click="$emit('batch-handover')"
+    >
+      <Handshake class="w-3.5 h-3.5" />
+      批量登记领取
+    </button>
+
+    <div class="w-px h-5 bg-slate-200" />
+
+    <button
       class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-md text-white bg-red-500 hover:bg-red-600 transition-colors"
       @click="handleBatchDelete"
     >
@@ -52,7 +62,11 @@
 import { useBadgeStore } from '@/composables/useBadgeStore'
 import { STATUS_LIST, STATUS_COLOR_MAP } from '@/types'
 import type { BadgeStatus } from '@/types'
-import { CheckSquare, Trash2, X, CheckCheck } from 'lucide-vue-next'
+import { CheckSquare, Trash2, X, CheckCheck, Handshake } from 'lucide-vue-next'
+
+defineEmits<{
+  'batch-handover': []
+}>()
 
 const store = useBadgeStore()
 

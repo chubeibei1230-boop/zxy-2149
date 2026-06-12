@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useBadgeStore } from '@/composables/useBadgeStore'
-import { COLOR_MAP, STATUS_COLOR_MAP, STATUS_LIST } from '@/types'
-import type { BadgeRecord, BadgeStatus } from '@/types'
-import { Package, CheckCircle, AlertTriangle, Users, ChevronDown, ChevronRight, ArrowLeft } from 'lucide-vue-next'
+import { COLOR_MAP, STATUS_COLOR_MAP, STATUS_LIST, HANDOVER_METHOD_LIST } from '@/types'
+import type { BadgeRecord, BadgeStatus, HandoverInfo, HandoverMethod } from '@/types'
+import { Package, CheckCircle, AlertTriangle, Users, ChevronDown, ChevronRight, ArrowLeft, Handshake, ClipboardList } from 'lucide-vue-next'
+import HandoverModal from './HandoverModal.vue'
 
 const emit = defineEmits<{
   back: []
@@ -12,6 +13,9 @@ const emit = defineEmits<{
 const store = useBadgeStore()
 
 const activeBatch = ref<string | null>(null)
+
+const showHandoverModal = ref(false)
+const handoverRecordIds = ref<string[]>([])
 
 const batchRecords = computed(() => {
   if (!activeBatch.value) return []
@@ -29,6 +33,12 @@ const batchPersonDistMax = computed(() => {
   return vals.length > 0 ? Math.max(...vals) : 1
 })
 
+const batchHandlerDistMax = computed(() => {
+  if (!batchStats.value) return 1
+  const vals = Object.values(batchStats.value.handlerDist)
+  return vals.length > 0 ? Math.max(...vals) : 1
+})
+
 const batchSelectedIds = computed(() => {
   return new Set(batchRecords.value.filter((r) => store.selectedIds.has(r.id)).map((r) => r.id))
 })
@@ -40,6 +50,7 @@ const batchAllSelected = computed(() => {
 })
 
 const expandedPersonDist = ref(true)
+const expandedHandlerDist = ref(false)
 
 function selectBatch(batch: string) {
   activeBatch.value = batch
@@ -71,6 +82,28 @@ function handleBatchDelete() {
 
 function getBatchCount(batch: string) {
   return store.records.filter((r) => r.printBatch === batch).length
+}
+
+function handleBatchRegisterHandover() {
+  if (batchSelectedCount.value === 0) return
+  handoverRecordIds.value = Array.from(batchSelectedIds.value)
+  showHandoverModal.value = true
+}
+
+function formatDateTime(isoStr: string) {
+  const d = new Date(isoStr)
+  return d.toLocaleString('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function handleHandoverSaved() {
+  for (const r of batchRecords.value) {
+    store.selectedIds.delete(r.id)
+  }
 }
 </script>
 
@@ -118,7 +151,7 @@ function getBatchCount(batch: string) {
             {{ activeBatch }} 批次统计
           </h3>
 
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
             <div class="bg-slate-50 rounded-lg px-3 py-2.5 flex flex-col">
               <span class="text-xs text-slate-500">总计</span>
               <span class="text-lg font-bold text-slate-800">{{ batchStats.total }}</span>
@@ -132,27 +165,48 @@ function getBatchCount(batch: string) {
             </div>
             <div class="bg-slate-50 rounded-lg px-3 py-2.5 flex flex-col">
               <span class="text-xs text-slate-500 flex items-center gap-1">
+                <Handshake class="w-3 h-3 text-green-500" />
+                已交接
+              </span>
+              <span class="text-lg font-bold text-green-600">{{ batchStats.handoverComplete }}</span>
+            </div>
+            <div class="bg-slate-50 rounded-lg px-3 py-2.5 flex flex-col">
+              <span class="text-xs text-slate-500 flex items-center gap-1">
                 <AlertTriangle class="w-3 h-3 text-red-500" />
                 需重做
               </span>
               <span class="text-lg font-bold text-red-600">{{ batchStats.redo }}</span>
             </div>
             <div class="bg-slate-50 rounded-lg px-3 py-2.5 flex flex-col">
-              <span class="text-xs text-slate-500">完成率</span>
-              <span class="text-lg font-bold text-primary-600">{{ batchStats.completionRate }}%</span>
+              <span class="text-xs text-slate-500">交接完成率</span>
+              <span class="text-lg font-bold text-primary-600">{{ batchStats.handoverRate }}%</span>
             </div>
           </div>
 
-          <div>
-            <div class="flex items-center gap-2 mb-1">
-              <span class="text-xs font-medium text-slate-500">完成进度</span>
-              <span class="text-xs text-slate-400">{{ batchStats.collected }} / {{ batchStats.total }}</span>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <span class="text-xs font-medium text-slate-500">领取完成进度</span>
+                <span class="text-xs text-slate-400">{{ batchStats.collected }} / {{ batchStats.total }}</span>
+              </div>
+              <div class="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
+                <div
+                  class="h-full bg-blue-500 rounded-full transition-all duration-300"
+                  :style="{ width: batchStats.completionRate + '%' }"
+                />
+              </div>
             </div>
-            <div class="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
-              <div
-                class="h-full bg-primary-600 rounded-full transition-all duration-300"
-                :style="{ width: batchStats.completionRate + '%' }"
-              />
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <span class="text-xs font-medium text-slate-500">交接完成进度</span>
+                <span class="text-xs text-slate-400">{{ batchStats.handoverComplete }} / {{ batchStats.total }}</span>
+              </div>
+              <div class="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
+                <div
+                  class="h-full bg-green-500 rounded-full transition-all duration-300"
+                  :style="{ width: batchStats.handoverRate + '%' }"
+                />
+              </div>
             </div>
           </div>
 
@@ -183,6 +237,37 @@ function getBatchCount(batch: string) {
               </div>
               <div v-if="Object.keys(batchStats.personDist).length === 0" class="text-xs text-slate-400">
                 暂无负责人数据
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <button
+              class="w-full flex items-center gap-2 text-left"
+              @click="expandedHandlerDist = !expandedHandlerDist"
+            >
+              <Handshake class="w-4 h-4 text-slate-400" />
+              <span class="text-xs font-medium text-slate-500">经办人分布</span>
+              <ChevronDown v-if="expandedHandlerDist" class="w-3.5 h-3.5 text-slate-400 ml-auto" />
+              <ChevronRight v-else class="w-3.5 h-3.5 text-slate-400 ml-auto" />
+            </button>
+            <div v-show="expandedHandlerDist" class="mt-2 space-y-2">
+              <div
+                v-for="(count, handler) in batchStats.handlerDist"
+                :key="handler"
+                class="flex items-center gap-2"
+              >
+                <span class="text-xs text-slate-600 w-16 truncate shrink-0">{{ handler }}</span>
+                <div class="flex-1 h-4 bg-slate-100 rounded overflow-hidden">
+                  <div
+                    class="h-full bg-green-400 rounded transition-all duration-300"
+                    :style="{ width: (count / batchHandlerDistMax * 100) + '%' }"
+                  />
+                </div>
+                <span class="text-xs font-medium text-slate-500 w-8 text-right shrink-0">{{ count }}</span>
+              </div>
+              <div v-if="Object.keys(batchStats.handlerDist).length === 0" class="text-xs text-slate-400">
+                暂无经办人数据
               </div>
             </div>
           </div>
@@ -264,6 +349,22 @@ function getBatchCount(batch: string) {
                 {{ record.status }}
               </span>
 
+              <span
+                v-if="record.handover"
+                class="inline-flex items-center gap-1 text-xs bg-green-50 text-green-700 border border-green-200 rounded px-1.5 py-0.5 shrink-0"
+                :title="`${record.handover.receiverName} · ${record.handover.handoverMethod} · ${record.handover.handler} · ${formatDateTime(record.handover.receivedAt)}`"
+              >
+                <Handshake class="w-3 h-3" />
+                已交接
+              </span>
+              <span
+                v-else
+                class="inline-flex items-center gap-1 text-xs bg-amber-50 text-amber-700 border border-amber-200 rounded px-1.5 py-0.5 shrink-0"
+              >
+                <ClipboardList class="w-3 h-3" />
+                待交接
+              </span>
+
               <span class="text-xs text-slate-500 w-16 truncate text-right ml-auto shrink-0">
                 {{ record.responsiblePerson || '-' }}
               </span>
@@ -314,6 +415,16 @@ function getBatchCount(batch: string) {
       <div class="h-5 w-px bg-slate-200 shrink-0" />
 
       <button
+        class="inline-flex items-center gap-1 text-xs font-medium text-white bg-green-500 hover:bg-green-600 rounded px-2 py-1 transition-colors whitespace-nowrap"
+        @click="handleBatchRegisterHandover"
+      >
+        <Handshake class="w-3.5 h-3.5" />
+        批量登记领取
+      </button>
+
+      <div class="h-5 w-px bg-slate-200 shrink-0" />
+
+      <button
         class="inline-flex items-center gap-1 text-xs font-medium text-red-500 hover:text-red-600 transition-colors whitespace-nowrap"
         @click="handleBatchDelete"
       >
@@ -327,5 +438,13 @@ function getBatchCount(batch: string) {
         取消选择
       </button>
     </div>
+
+    <HandoverModal
+      :visible="showHandoverModal"
+      :record-ids="handoverRecordIds"
+      :default-record="null"
+      @close="showHandoverModal = false"
+      @saved="handleHandoverSaved"
+    />
   </div>
 </template>

@@ -86,6 +86,7 @@ function handleSave() {
     status: form.status as BadgeStatus,
     notes: form.notes,
     responsiblePerson: form.responsiblePerson,
+    handover: null,
   })
 }
 </script>

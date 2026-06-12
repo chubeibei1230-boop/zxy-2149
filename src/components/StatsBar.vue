@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useBadgeStore } from '@/composables/useBadgeStore'
-import { Users, Printer, CheckCircle, AlertTriangle, ClipboardList, Clock } from 'lucide-vue-next'
+import { Users, Printer, CheckCircle, AlertTriangle, ClipboardList, Clock, Handshake } from 'lucide-vue-next'
 import { STATUS_LIST, STATUS_COLOR_MAP } from '@/types'
 import type { BadgeStatus } from '@/types'
 
@@ -37,6 +37,32 @@ const statusIconMap: Record<BadgeStatus, typeof Users> = {
         <span class="text-xs text-slate-500">{{ status }}</span>
       </div>
     </div>
+
+    <div class="w-px h-8 bg-slate-200 mx-1" />
+
+    <div
+      class="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-4 py-2.5 min-w-fit"
+      style="border-left: 3px solid #22C55E"
+    >
+      <Handshake class="w-4 h-4 shrink-0 text-green-500" />
+      <div class="flex flex-col">
+        <span class="text-sm font-semibold text-slate-800">{{ store.stats.handoverStats.received }}</span>
+        <span class="text-xs text-slate-500">已交接</span>
+      </div>
+    </div>
+
+    <div
+      class="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-4 py-2.5 min-w-fit"
+      style="border-left: 3px solid #F59E0B"
+    >
+      <ClipboardList class="w-4 h-4 shrink-0 text-amber-500" />
+      <div class="flex flex-col">
+        <span class="text-sm font-semibold text-slate-800">{{ store.stats.handoverStats.notReceived }}</span>
+        <span class="text-xs text-slate-500">待交接</span>
+      </div>
+    </div>
+
+    <div class="w-px h-8 bg-slate-200 mx-1" />
 
     <div
       class="flex items-center gap-2 bg-white border rounded-xl px-4 py-2.5 min-w-fit"

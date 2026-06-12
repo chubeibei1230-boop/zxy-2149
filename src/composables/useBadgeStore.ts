@@ -1,19 +1,19 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
-import type { BadgeRecord, FilterState, CheckIssue, BadgeStatus } from '@/types'
+import type { BadgeRecord, FilterState, CheckIssue, BadgeStatus, HandoverInfo } from '@/types'
 import { generateId } from '@/types'
 
 const STORAGE_KEY = 'badge-checklist-records'
 
 const SEED_DATA: BadgeRecord[] = [
-  { id: 'seed1', name: '张伟', company: '华科技术', attendeeType: '嘉宾', badgeColor: '红色', printBatch: 'A1', status: '待打印', notes: 'VIP嘉宾', responsiblePerson: '李明', createdAt: '2025-01-01T00:00:00Z', updatedAt: '2025-01-01T00:00:00Z' },
-  { id: 'seed2', name: '王芳', company: '创新科技', attendeeType: '参展商', badgeColor: '蓝色', printBatch: 'A1', status: '待领取', notes: '', responsiblePerson: '李明', createdAt: '2025-01-01T00:00:00Z', updatedAt: '2025-01-01T00:00:00Z' },
-  { id: 'seed3', name: '张伟', company: '数字未来', attendeeType: '观众', badgeColor: '绿色', printBatch: 'A2', status: '待设计', notes: '', responsiblePerson: '', createdAt: '2025-01-01T00:00:00Z', updatedAt: '2025-01-01T00:00:00Z' },
-  { id: 'seed4', name: '刘洋', company: '星辰传媒', attendeeType: '媒体', badgeColor: '紫色', printBatch: 'A2', status: '已领取', notes: '', responsiblePerson: '赵红', createdAt: '2025-01-01T00:00:00Z', updatedAt: '2025-01-01T00:00:00Z' },
-  { id: 'seed5', name: '陈静', company: '光速网络', attendeeType: '参展商', badgeColor: '蓝色', printBatch: 'B1', status: '需重做', notes: '信息有误需重新制作', responsiblePerson: '赵红', createdAt: '2025-01-01T00:00:00Z', updatedAt: '2025-01-01T00:00:00Z' },
-  { id: 'seed6', name: '赵磊', company: '未来教育', attendeeType: '工作人员', badgeColor: '黄色', printBatch: 'B1', status: '待打印', notes: '', responsiblePerson: '', createdAt: '2025-01-01T00:00:00Z', updatedAt: '2025-01-01T00:00:00Z' },
-  { id: 'seed7', name: '孙丽', company: '阳光志愿者', attendeeType: '志愿者', badgeColor: '橙色', printBatch: '', status: '已领取', notes: '', responsiblePerson: '李明', createdAt: '2025-01-01T00:00:00Z', updatedAt: '2025-01-01T00:00:00Z' },
-  { id: 'seed8', name: '周涛', company: '盛世展览', attendeeType: '参展商', badgeColor: '蓝色', printBatch: 'A1', status: '待设计', notes: '', responsiblePerson: '赵红', createdAt: '2025-01-01T00:00:00Z', updatedAt: '2025-01-01T00:00:00Z' },
+  { id: 'seed1', name: '张伟', company: '华科技术', attendeeType: '嘉宾', badgeColor: '红色', printBatch: 'A1', status: '待打印', notes: 'VIP嘉宾', responsiblePerson: '李明', createdAt: '2025-01-01T00:00:00Z', updatedAt: '2025-01-01T00:00:00Z', handover: null },
+  { id: 'seed2', name: '王芳', company: '创新科技', attendeeType: '参展商', badgeColor: '蓝色', printBatch: 'A1', status: '待领取', notes: '', responsiblePerson: '李明', createdAt: '2025-01-01T00:00:00Z', updatedAt: '2025-01-01T00:00:00Z', handover: null },
+  { id: 'seed3', name: '张伟', company: '数字未来', attendeeType: '观众', badgeColor: '绿色', printBatch: 'A2', status: '待设计', notes: '', responsiblePerson: '', createdAt: '2025-01-01T00:00:00Z', updatedAt: '2025-01-01T00:00:00Z', handover: null },
+  { id: 'seed4', name: '刘洋', company: '星辰传媒', attendeeType: '媒体', badgeColor: '紫色', printBatch: 'A2', status: '已领取', notes: '', responsiblePerson: '赵红', createdAt: '2025-01-01T00:00:00Z', updatedAt: '2025-01-01T00:00:00Z', handover: { receiverName: '刘洋', receivedAt: '2025-01-05T10:30:00Z', handoverMethod: '当面领取', handler: '赵红', handoverNotes: '本人签字确认' } },
+  { id: 'seed5', name: '陈静', company: '光速网络', attendeeType: '参展商', badgeColor: '蓝色', printBatch: 'B1', status: '需重做', notes: '信息有误需重新制作', responsiblePerson: '赵红', createdAt: '2025-01-01T00:00:00Z', updatedAt: '2025-01-01T00:00:00Z', handover: null },
+  { id: 'seed6', name: '赵磊', company: '未来教育', attendeeType: '工作人员', badgeColor: '黄色', printBatch: 'B1', status: '待打印', notes: '', responsiblePerson: '', createdAt: '2025-01-01T00:00:00Z', updatedAt: '2025-01-01T00:00:00Z', handover: null },
+  { id: 'seed7', name: '孙丽', company: '阳光志愿者', attendeeType: '志愿者', badgeColor: '橙色', printBatch: '', status: '已领取', notes: '', responsiblePerson: '李明', createdAt: '2025-01-01T00:00:00Z', updatedAt: '2025-01-01T00:00:00Z', handover: null },
+  { id: 'seed8', name: '周涛', company: '盛世展览', attendeeType: '参展商', badgeColor: '蓝色', printBatch: 'A1', status: '待设计', notes: '', responsiblePerson: '赵红', createdAt: '2025-01-01T00:00:00Z', updatedAt: '2025-01-01T00:00:00Z', handover: null },
 ]
 
 function loadRecords(): BadgeRecord[] {
@@ -46,6 +46,10 @@ export const useBadgeStore = defineStore('badge', () => {
     status: '',
     searchName: '',
     focusRecordIds: [],
+    handoverStatus: '',
+    handoverHandler: '',
+    handoverStartDate: '',
+    handoverEndDate: '',
   })
 
   const selectedIds = ref<Set<string>>(new Set())
@@ -66,6 +70,30 @@ export const useBadgeStore = defineStore('badge', () => {
       }
       if (filter.value.status && r.status !== filter.value.status) return false
       if (filter.value.searchName && !r.name.includes(filter.value.searchName)) return false
+      if (filter.value.handoverStatus === '已领取') {
+        if (!r.handover) return false
+      } else if (filter.value.handoverStatus === '未领取') {
+        if (r.handover) return false
+      }
+      if (filter.value.handoverHandler === '__empty__') {
+        if (r.handover?.handler) return false
+      } else if (filter.value.handoverHandler && r.handover?.handler !== filter.value.handoverHandler) {
+        return false
+      }
+      if (filter.value.handoverStartDate && r.handover) {
+        const start = new Date(filter.value.handoverStartDate)
+        const received = new Date(r.handover.receivedAt)
+        start.setHours(0, 0, 0, 0)
+        received.setHours(0, 0, 0, 0)
+        if (received < start) return false
+      }
+      if (filter.value.handoverEndDate && r.handover) {
+        const end = new Date(filter.value.handoverEndDate)
+        const received = new Date(r.handover.receivedAt)
+        end.setHours(23, 59, 59, 999)
+        received.setHours(0, 0, 0, 0)
+        if (received > end) return false
+      }
       return true
     })
   })
@@ -95,13 +123,25 @@ export const useBadgeStore = defineStore('badge', () => {
     return Array.from(persons).sort()
   })
 
+  const allHandoverHandlers = computed(() => {
+    const handlers = new Set<string>()
+    for (const r of records.value) {
+      if (r.handover?.handler) handlers.add(r.handover.handler)
+    }
+    return Array.from(handlers).sort()
+  })
+
   const stats = computed(() => {
     const total = records.value.length
     const byStatus: Record<string, number> = {}
     for (const r of records.value) {
       byStatus[r.status] = (byStatus[r.status] || 0) + 1
     }
-    return { total, byStatus }
+    const handoverStats = {
+      received: records.value.filter((r) => r.handover).length,
+      notReceived: records.value.filter((r) => !r.handover).length,
+    }
+    return { total, byStatus, handoverStats }
   })
 
   const checks = computed<CheckIssue[]>(() => {
@@ -167,6 +207,36 @@ export const useBadgeStore = defineStore('badge', () => {
       }
     }
 
+    const collectedMissingHandoverIds: string[] = []
+    for (const r of records.value) {
+      if (r.status === '已领取' && !r.handover) {
+        collectedMissingHandoverIds.push(r.id)
+      }
+    }
+    if (collectedMissingHandoverIds.length > 0) {
+      issues.push({
+        type: 'collected_missing_handover',
+        recordIds: collectedMissingHandoverIds,
+        message: `${collectedMissingHandoverIds.length} 条记录已领取但缺少交接信息`,
+        severity: 'error',
+      })
+    }
+
+    const pendingHasHandoverIds: string[] = []
+    for (const r of records.value) {
+      if (r.status !== '已领取' && r.handover) {
+        pendingHasHandoverIds.push(r.id)
+      }
+    }
+    if (pendingHasHandoverIds.length > 0) {
+      issues.push({
+        type: 'pending_has_handover',
+        recordIds: pendingHasHandoverIds,
+        message: `${pendingHasHandoverIds.length} 条记录未领取但已填写交接信息`,
+        severity: 'warning',
+      })
+    }
+
     return issues
   })
 
@@ -204,6 +274,32 @@ export const useBadgeStore = defineStore('badge', () => {
       const idx = records.value.findIndex((r) => r.id === id)
       if (idx !== -1) {
         records.value[idx] = { ...records.value[idx], status, updatedAt: now }
+      }
+    }
+  }
+
+  function batchRegisterHandover(ids: string[], handoverInfo: HandoverInfo) {
+    const now = new Date().toISOString()
+    for (const id of ids) {
+      const idx = records.value.findIndex((r) => r.id === id)
+      if (idx !== -1) {
+        records.value[idx] = {
+          ...records.value[idx],
+          status: '已领取',
+          handover: handoverInfo,
+          updatedAt: now,
+        }
+      }
+    }
+  }
+
+  function clearHandover(id: string) {
+    const idx = records.value.findIndex((r) => r.id === id)
+    if (idx !== -1) {
+      records.value[idx] = {
+        ...records.value[idx],
+        handover: null,
+        updatedAt: new Date().toISOString(),
       }
     }
   }
@@ -246,6 +342,10 @@ export const useBadgeStore = defineStore('badge', () => {
       status: '',
       searchName: '',
       focusRecordIds: [],
+      handoverStatus: '',
+      handoverHandler: '',
+      handoverStartDate: '',
+      handoverEndDate: '',
     }
   }
 
@@ -258,6 +358,10 @@ export const useBadgeStore = defineStore('badge', () => {
       status: '',
       searchName: '',
       focusRecordIds: [...issue.recordIds],
+      handoverStatus: '',
+      handoverHandler: '',
+      handoverStartDate: '',
+      handoverEndDate: '',
     }
     if (issue.type === 'duplicate_name') {
       const firstRecord = records.value.find((r) => r.id === issue.recordIds[0])
@@ -274,6 +378,11 @@ export const useBadgeStore = defineStore('badge', () => {
     } else if (issue.type === 'collected_no_batch') {
       filter.value.status = '已领取'
       filter.value.printBatch = '__empty__'
+    } else if (issue.type === 'collected_missing_handover') {
+      filter.value.status = '已领取'
+      filter.value.handoverStatus = '未领取'
+    } else if (issue.type === 'pending_has_handover') {
+      filter.value.handoverStatus = '已领取'
     }
   }
 
@@ -282,13 +391,20 @@ export const useBadgeStore = defineStore('badge', () => {
     const total = batchRecords.length
     const collected = batchRecords.filter((r) => r.status === '已领取').length
     const redo = batchRecords.filter((r) => r.status === '需重做').length
+    const handoverComplete = batchRecords.filter((r) => r.handover).length
     const completionRate = total > 0 ? Math.round((collected / total) * 100) : 0
+    const handoverRate = total > 0 ? Math.round((handoverComplete / total) * 100) : 0
     const personDist: Record<string, number> = {}
     for (const r of batchRecords) {
       const person = r.responsiblePerson || '未指定'
       personDist[person] = (personDist[person] || 0) + 1
     }
-    return { total, collected, redo, completionRate, personDist }
+    const handlerDist: Record<string, number> = {}
+    for (const r of batchRecords) {
+      const handler = r.handover?.handler || '未交接'
+      handlerDist[handler] = (handlerDist[handler] || 0) + 1
+    }
+    return { total, collected, redo, handoverComplete, completionRate, handoverRate, personDist, handlerDist }
   }
 
   return {
@@ -299,6 +415,7 @@ export const useBadgeStore = defineStore('badge', () => {
     groupedByColor,
     allBatches,
     allResponsiblePersons,
+    allHandoverHandlers,
     stats,
     checks,
     issueCount,
@@ -306,6 +423,8 @@ export const useBadgeStore = defineStore('badge', () => {
     updateRecord,
     deleteRecord,
     batchUpdateStatus,
+    batchRegisterHandover,
+    clearHandover,
     deleteRecords,
     toggleSelect,
     selectAll,

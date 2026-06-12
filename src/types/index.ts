@@ -4,6 +4,18 @@ export type BadgeColor = '红色' | '蓝色' | '绿色' | '黄色' | '紫色' | 
 
 export type AttendeeType = '嘉宾' | '参展商' | '观众' | '工作人员' | '媒体' | '志愿者' | '其他'
 
+export type HandoverMethod = '当面领取' | '快递邮寄' | '他人代领' | '电子交接'
+
+export const HANDOVER_METHOD_LIST: HandoverMethod[] = ['当面领取', '快递邮寄', '他人代领', '电子交接']
+
+export interface HandoverInfo {
+  receiverName: string
+  receivedAt: string
+  handoverMethod: HandoverMethod
+  handler: string
+  handoverNotes: string
+}
+
 export interface BadgeRecord {
   id: string
   name: string
@@ -16,9 +28,10 @@ export interface BadgeRecord {
   responsiblePerson: string
   createdAt: string
   updatedAt: string
+  handover: HandoverInfo | null
 }
 
-export type CheckIssueType = 'duplicate_name' | 'batch_color_mismatch' | 'missing_responsible' | 'collected_no_batch'
+export type CheckIssueType = 'duplicate_name' | 'batch_color_mismatch' | 'missing_responsible' | 'collected_no_batch' | 'collected_missing_handover' | 'pending_has_handover'
 
 export interface CheckIssue {
   type: CheckIssueType
@@ -35,6 +48,10 @@ export interface FilterState {
   status: string
   searchName: string
   focusRecordIds: string[]
+  handoverStatus: string
+  handoverHandler: string
+  handoverStartDate: string
+  handoverEndDate: string
 }
 
 export const STATUS_LIST: BadgeStatus[] = ['待设计', '待打印', '待领取', '已领取', '需重做']

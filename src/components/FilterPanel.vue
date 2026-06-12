@@ -26,6 +26,13 @@
         </div>
       </div>
 
+      <div class="h-px bg-slate-100" />
+
+      <div class="text-xs font-semibold text-slate-500 flex items-center gap-1.5">
+        <ClipboardList class="w-3.5 h-3.5" />
+        基础信息
+      </div>
+
       <div class="flex flex-col gap-1">
         <label class="text-xs font-medium text-slate-500">参会类型</label>
         <select v-model="store.filter.attendeeType" class="select-field">
@@ -76,6 +83,55 @@
           <option v-for="s in STATUS_LIST" :key="s" :value="s">{{ s }}</option>
         </select>
       </div>
+
+      <div class="h-px bg-slate-100" />
+
+      <div class="text-xs font-semibold text-slate-500 flex items-center gap-1.5">
+        <Handshake class="w-3.5 h-3.5" />
+        领取交接
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label class="text-xs font-medium text-slate-500">领取状态</label>
+        <select v-model="store.filter.handoverStatus" class="select-field">
+          <option value="">全部</option>
+          <option value="已领取">已交接</option>
+          <option value="未领取">未交接</option>
+        </select>
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label class="text-xs font-medium text-slate-500">经办人</label>
+        <select v-model="store.filter.handoverHandler" class="select-field">
+          <option value="">全部</option>
+          <option value="__empty__">未指定</option>
+          <option v-for="h in store.allHandoverHandlers" :key="h" :value="h">{{ h }}</option>
+        </select>
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label class="text-xs font-medium text-slate-500">领取时间范围</label>
+        <div class="flex flex-col gap-1.5">
+          <div class="relative">
+            <Calendar class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+            <input
+              v-model="store.filter.handoverStartDate"
+              type="date"
+              class="input-field pl-8 text-xs"
+              placeholder="开始日期"
+            />
+          </div>
+          <div class="relative">
+            <Calendar class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+            <input
+              v-model="store.filter.handoverEndDate"
+              type="date"
+              class="input-field pl-8 text-xs"
+              placeholder="结束日期"
+            />
+          </div>
+        </div>
+      </div>
     </div>
 
     <button class="btn-secondary flex items-center justify-center gap-1.5 mt-auto" @click="store.clearFilter()">
@@ -86,7 +142,7 @@
 </template>
 
 <script setup lang="ts">
-import { Filter, X, Search } from 'lucide-vue-next'
+import { Filter, X, Search, Handshake, ClipboardList, Calendar } from 'lucide-vue-next'
 import { useBadgeStore } from '@/composables/useBadgeStore'
 import { COLOR_LIST, ATTENDEE_TYPE_LIST, STATUS_LIST, COLOR_MAP } from '@/types'
 import type { BadgeColor, AttendeeType, BadgeStatus } from '@/types'
