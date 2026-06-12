@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch, nextTick, toRefs } from 'vue'
 import { useBadgeStore } from '@/composables/useBadgeStore'
 import type { BadgeRecord } from '@/types'
 import StatsBar from '@/components/StatsBar.vue'
@@ -12,10 +12,12 @@ import BatchMode from '@/components/BatchMode.vue'
 import { Plus, LayoutGrid, Package, Search } from 'lucide-vue-next'
 
 const store = useBadgeStore()
+const { filter } = toRefs(store)
 
 const showForm = ref(false)
 const editingRecord = ref<BadgeRecord | null>(null)
 const mode = ref<'normal' | 'batch'>('normal')
+const scrollContainer = ref<HTMLElement | null>(null)
 
 const colorOrder = ['红色', '蓝色', '绿色', '黄色', '紫色', '橙色', '灰色']
 
@@ -25,6 +27,28 @@ const sortedColorGroups = computed(() => {
     .filter((c) => groups[c] && groups[c].length > 0)
     .map((c) => ({ color: c, records: groups[c] }))
 })
+
+watch(() => filter.value.focusRecordIds, (ids) => {
+  if (ids.length > 0) {
+    nextTick(() => {
+      const firstId = ids[0]
+      const el = scrollContainer.value?.querySelector(`[data-record-id="${firstId}"]`) as HTMLElement | null
+      if (el && scrollContainer.value) {
+        const containerTop = scrollContainer.value.scrollTop
+        const elementTop = el.offsetTop
+        const elementHeight = el.offsetHeight
+        const containerHeight = scrollContainer.value.clientHeight
+        scrollContainer.value.scrollTo({
+          top: elementTop - containerTop - containerHeight / 2 + elementHeight / 2,
+          behavior: 'smooth',
+        })
+      }
+    })
+    setTimeout(() => {
+      filter.value.focusRecordIds = []
+    }, 3000)
+  }
+}, { deep: true })
 
 function handleAdd() {
   editingRecord.value = null
@@ -114,7 +138,7 @@ function handleClose() {
           <CheckPanel />
         </div>
 
-        <div class="flex-1 overflow-y-auto px-6 pb-20">
+        <div ref="scrollContainer" class="flex-1 overflow-y-auto px-6 pb-20">
           <div v-if="store.filteredRecords.length === 0" class="flex flex-col items-center justify-center py-20 text-slate-400">
             <Search class="w-12 h-12 mb-3 opacity-40" />
             <p class="text-sm">暂无匹配的胸卡记录</p>

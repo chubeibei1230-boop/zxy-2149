@@ -1,6 +1,10 @@
 <template>
   <div
-    class="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow p-4 flex gap-3 relative overflow-hidden"
+    :data-record-id="record.id"
+    class="bg-white rounded-xl border shadow-sm hover:shadow-md transition-all p-4 flex gap-3 relative overflow-hidden"
+    :class="highlighted
+      ? 'border-amber-400 ring-2 ring-amber-200 shadow-md'
+      : 'border-slate-200'"
   >
     <div
       class="absolute left-0 top-0 bottom-0 w-1"
@@ -99,14 +103,21 @@
 </template>
 
 <script setup lang="ts">
+import { computed, toRefs } from 'vue'
 import type { BadgeRecord } from '@/types'
 import { COLOR_MAP, STATUS_COLOR_MAP } from '@/types'
 import { Edit2, Trash2, Building2, Tag, Layers, User, FileText, StickyNote } from 'lucide-vue-next'
+import { useBadgeStore } from '@/composables/useBadgeStore'
 
-defineProps<{
+const store = useBadgeStore()
+const { filter } = toRefs(store)
+
+const props = defineProps<{
   record: BadgeRecord
   selected: boolean
 }>()
+
+const highlighted = computed(() => filter.value.focusRecordIds.includes(props.record.id))
 
 defineEmits<{
   edit: [record: BadgeRecord]

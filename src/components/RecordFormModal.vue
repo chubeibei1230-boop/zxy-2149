@@ -62,8 +62,21 @@ function handleClose() {
   emit('close')
 }
 
+const isFormValid = computed(() => {
+  return !!form.name.trim() && !!form.attendeeType && !!form.badgeColor && !!form.status
+})
+
+const validationErrors = computed(() => {
+  const errors: string[] = []
+  if (!form.name.trim()) errors.push('姓名不能为空')
+  if (!form.attendeeType) errors.push('请选择参会类型')
+  if (!form.badgeColor) errors.push('请选择胸卡颜色')
+  if (!form.status) errors.push('请选择状态')
+  return errors
+})
+
 function handleSave() {
-  if (!form.name.trim()) return
+  if (!isFormValid.value) return
   emit('save', {
     name: form.name,
     company: form.company,
@@ -103,7 +116,7 @@ function handleSave() {
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">参会类型</label>
+            <label class="block text-sm font-medium text-slate-700 mb-1">参会类型 <span class="text-red-500">*</span></label>
             <select v-model="form.attendeeType" class="select-field">
               <option value="" disabled>请选择参会类型</option>
               <option v-for="item in ATTENDEE_TYPE_LIST" :key="item" :value="item">{{ item }}</option>
@@ -111,7 +124,7 @@ function handleSave() {
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">胸卡颜色</label>
+            <label class="block text-sm font-medium text-slate-700 mb-1">胸卡颜色 <span class="text-red-500">*</span></label>
             <select v-model="form.badgeColor" class="select-field">
               <option value="" disabled>请选择胸卡颜色</option>
               <option v-for="color in COLOR_LIST" :key="color" :value="color">
@@ -130,7 +143,7 @@ function handleSave() {
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">状态</label>
+            <label class="block text-sm font-medium text-slate-700 mb-1">状态 <span class="text-red-500">*</span></label>
             <select v-model="form.status" class="select-field">
               <option value="" disabled>请选择状态</option>
               <option v-for="item in STATUS_LIST" :key="item" :value="item">{{ item }}</option>
@@ -149,8 +162,12 @@ function handleSave() {
         </div>
 
         <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-200">
+          <div v-if="validationErrors.length && !isFormValid" class="flex-1 text-xs text-red-500">
+            {{ validationErrors.join('，') }}
+          </div>
+          <div v-else class="flex-1" />
           <button class="btn-secondary" @click="handleClose">取消</button>
-          <button class="btn-primary" :disabled="!form.name.trim()" @click="handleSave">保存</button>
+          <button class="btn-primary" :disabled="!isFormValid" @click="handleSave">保存</button>
         </div>
       </div>
     </div>

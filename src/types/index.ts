@@ -34,6 +34,7 @@ export interface FilterState {
   responsiblePerson: string
   status: string
   searchName: string
+  focusRecordIds: string[]
 }
 
 export const STATUS_LIST: BadgeStatus[] = ['待设计', '待打印', '待领取', '已领取', '需重做']

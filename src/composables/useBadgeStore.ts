@@ -45,6 +45,7 @@ export const useBadgeStore = defineStore('badge', () => {
     responsiblePerson: '',
     status: '',
     searchName: '',
+    focusRecordIds: [],
   })
 
   const selectedIds = ref<Set<string>>(new Set())
@@ -53,7 +54,11 @@ export const useBadgeStore = defineStore('badge', () => {
     return records.value.filter((r) => {
       if (filter.value.attendeeType && r.attendeeType !== filter.value.attendeeType) return false
       if (filter.value.badgeColor && r.badgeColor !== filter.value.badgeColor) return false
-      if (filter.value.printBatch && r.printBatch !== filter.value.printBatch) return false
+      if (filter.value.printBatch === '__empty__') {
+        if (r.printBatch) return false
+      } else if (filter.value.printBatch && r.printBatch !== filter.value.printBatch) {
+        return false
+      }
       if (filter.value.responsiblePerson === '__empty__') {
         if (r.responsiblePerson) return false
       } else if (filter.value.responsiblePerson && r.responsiblePerson !== filter.value.responsiblePerson) {
@@ -141,11 +146,11 @@ export const useBadgeStore = defineStore('badge', () => {
     }
 
     for (const r of records.value) {
-      if (r.status !== '待设计' && !r.responsiblePerson) {
+      if (!r.responsiblePerson) {
         issues.push({
           type: 'missing_responsible',
           recordIds: [r.id],
-          message: `"${r.name}"状态为"${r.status}"但未指定负责人`,
+          message: `"${r.name}"未指定负责人`,
           severity: 'warning',
         })
       }
@@ -240,6 +245,7 @@ export const useBadgeStore = defineStore('badge', () => {
       responsiblePerson: '',
       status: '',
       searchName: '',
+      focusRecordIds: [],
     }
   }
 
@@ -251,6 +257,7 @@ export const useBadgeStore = defineStore('badge', () => {
       responsiblePerson: '',
       status: '',
       searchName: '',
+      focusRecordIds: [...issue.recordIds],
     }
     if (issue.type === 'duplicate_name') {
       const firstRecord = records.value.find((r) => r.id === issue.recordIds[0])
@@ -266,6 +273,7 @@ export const useBadgeStore = defineStore('badge', () => {
       filter.value.responsiblePerson = '__empty__'
     } else if (issue.type === 'collected_no_batch') {
       filter.value.status = '已领取'
+      filter.value.printBatch = '__empty__'
     }
   }
 

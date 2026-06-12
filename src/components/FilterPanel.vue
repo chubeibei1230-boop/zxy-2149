@@ -55,6 +55,7 @@
         <label class="text-xs font-medium text-slate-500">打印批次</label>
         <select v-model="store.filter.printBatch" class="select-field">
           <option value="">全部</option>
+          <option value="__empty__">未指定</option>
           <option v-for="b in store.allBatches" :key="b" :value="b">{{ b }}</option>
         </select>
       </div>
