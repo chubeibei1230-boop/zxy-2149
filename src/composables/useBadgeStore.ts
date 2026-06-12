@@ -77,7 +77,10 @@ export const useBadgeStore = defineStore('badge', () => {
       }
       if (filter.value.handoverHandler === '__empty__') {
         if (r.handover?.handler) return false
-      } else if (filter.value.handoverHandler && r.handover?.handler !== filter.value.handoverHandler) {
+      } else if (filter.value.handoverHandler) {
+        if (!r.handover || r.handover.handler !== filter.value.handoverHandler) return false
+      }
+      if ((filter.value.handoverStartDate || filter.value.handoverEndDate) && !r.handover) {
         return false
       }
       if (filter.value.handoverStartDate && r.handover) {

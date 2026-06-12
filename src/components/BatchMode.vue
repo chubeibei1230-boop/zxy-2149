@@ -16,6 +16,7 @@ const activeBatch = ref<string | null>(null)
 
 const showHandoverModal = ref(false)
 const handoverRecordIds = ref<string[]>([])
+const handoverDefaultRecord = ref<BadgeRecord | null>(null)
 
 const batchRecords = computed(() => {
   if (!activeBatch.value) return []
@@ -73,7 +74,14 @@ function toggleBatchSelectAll() {
 }
 
 function handleBatchStatusUpdate(status: BadgeStatus) {
-  store.batchUpdateStatus(Array.from(batchSelectedIds.value), status)
+  if (status === '已领取') {
+    if (batchSelectedCount.value === 0) return
+    handoverRecordIds.value = Array.from(batchSelectedIds.value)
+    handoverDefaultRecord.value = null
+    showHandoverModal.value = true
+  } else {
+    store.batchUpdateStatus(Array.from(batchSelectedIds.value), status)
+  }
 }
 
 function handleBatchDelete() {
@@ -87,6 +95,13 @@ function getBatchCount(batch: string) {
 function handleBatchRegisterHandover() {
   if (batchSelectedCount.value === 0) return
   handoverRecordIds.value = Array.from(batchSelectedIds.value)
+  handoverDefaultRecord.value = null
+  showHandoverModal.value = true
+}
+
+function handleRegisterSingleHandover(record: BadgeRecord) {
+  handoverRecordIds.value = [record.id]
+  handoverDefaultRecord.value = record
   showHandoverModal.value = true
 }
 
@@ -349,21 +364,24 @@ function handleHandoverSaved() {
                 {{ record.status }}
               </span>
 
-              <span
+              <button
                 v-if="record.handover"
-                class="inline-flex items-center gap-1 text-xs bg-green-50 text-green-700 border border-green-200 rounded px-1.5 py-0.5 shrink-0"
-                :title="`${record.handover.receiverName} · ${record.handover.handoverMethod} · ${record.handover.handler} · ${formatDateTime(record.handover.receivedAt)}`"
+                class="inline-flex items-center gap-1 text-xs bg-green-50 text-green-700 border border-green-200 rounded px-1.5 py-0.5 shrink-0 hover:bg-green-100 transition-colors"
+                :title="`${record.handover.receiverName} · ${record.handover.handoverMethod} · ${record.handover.handler} · ${formatDateTime(record.handover.receivedAt)} - 点击修改`"
+                @click="handleRegisterSingleHandover(record)"
               >
                 <Handshake class="w-3 h-3" />
                 已交接
-              </span>
-              <span
+              </button>
+              <button
                 v-else
-                class="inline-flex items-center gap-1 text-xs bg-amber-50 text-amber-700 border border-amber-200 rounded px-1.5 py-0.5 shrink-0"
+                class="inline-flex items-center gap-1 text-xs bg-amber-50 text-amber-700 border border-amber-200 rounded px-1.5 py-0.5 shrink-0 hover:bg-amber-100 transition-colors"
+                title="点击登记领取"
+                @click="handleRegisterSingleHandover(record)"
               >
                 <ClipboardList class="w-3 h-3" />
-                待交接
-              </span>
+                登记领取
+              </button>
 
               <span class="text-xs text-slate-500 w-16 truncate text-right ml-auto shrink-0">
                 {{ record.responsiblePerson || '-' }}
@@ -442,7 +460,7 @@ function handleHandoverSaved() {
     <HandoverModal
       :visible="showHandoverModal"
       :record-ids="handoverRecordIds"
-      :default-record="null"
+      :default-record="handoverDefaultRecord"
       @close="showHandoverModal = false"
       @saved="handleHandoverSaved"
     />

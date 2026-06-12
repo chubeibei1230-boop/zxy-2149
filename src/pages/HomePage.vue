@@ -199,7 +199,7 @@ function handleHandoverDetailEdit(record: BadgeRecord) {
           </div>
         </div>
 
-        <BatchToolbar @batch-handover="handleBatchRegisterHandover" />
+        <BatchToolbar @batch-handover="handleBatchRegisterHandover" @batch-mark-received="handleBatchRegisterHandover" />
       </main>
     </div>
 

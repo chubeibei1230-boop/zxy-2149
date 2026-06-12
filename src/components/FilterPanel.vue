@@ -95,8 +95,8 @@
         <label class="text-xs font-medium text-slate-500">领取状态</label>
         <select v-model="store.filter.handoverStatus" class="select-field">
           <option value="">全部</option>
-          <option value="已领取">已交接</option>
-          <option value="未领取">未交接</option>
+          <option value="已领取">已领取（有交接信息）</option>
+          <option value="未领取">未领取（无交接信息）</option>
         </select>
       </div>
 
