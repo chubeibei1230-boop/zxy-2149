@@ -251,6 +251,266 @@ const SEED_DATA: BadgeRecord[] = [
       createSeedLog('seed8', 'create', '新增', '待设计', '赵红', '2025-01-01T00:00:00Z', '参展商名单导入'),
     ],
   },
+  {
+    id: 'seed9',
+    name: '吴明',
+    company: '科技创新',
+    attendeeType: '参展商',
+    badgeColor: '蓝色',
+    printBatch: 'A1',
+    status: '待领取',
+    notes: '',
+    responsiblePerson: '李明',
+    createdAt: '2025-01-01T00:00:00Z',
+    updatedAt: '2025-01-03T08:00:00Z',
+    handover: null,
+    currentNode: '待领取',
+    progressLogs: [
+      createSeedLog('seed9', 'create', '新增', '待设计', '李明', '2025-01-01T00:00:00Z'),
+      {
+        ...createSeedLog('seed9', 'update_status', '设计', '待打印', '李明', '2025-01-01T01:00:00Z'),
+        previousStatus: '待设计',
+      },
+      {
+        ...createSeedLog('seed9', 'update_status', '打印', '待领取', '赵红', '2025-01-03T08:00:00Z', '打印完成'),
+        previousStatus: '待打印',
+      },
+    ],
+  },
+  {
+    id: 'seed10',
+    name: '郑华',
+    company: '智能科技',
+    attendeeType: '嘉宾',
+    badgeColor: '红色',
+    printBatch: 'A2',
+    status: '待领取',
+    notes: 'VIP嘉宾，需专人接待',
+    responsiblePerson: '赵红',
+    createdAt: '2025-01-01T00:00:00Z',
+    updatedAt: '2025-01-03T09:00:00Z',
+    handover: null,
+    currentNode: '待领取',
+    progressLogs: [
+      createSeedLog('seed10', 'create', '新增', '待设计', '赵红', '2025-01-01T00:00:00Z', 'VIP嘉宾名单'),
+      {
+        ...createSeedLog('seed10', 'update_status', '设计', '待打印', '赵红', '2025-01-01T02:00:00Z'),
+        previousStatus: '待设计',
+      },
+      {
+        ...createSeedLog('seed10', 'update_status', '打印', '待领取', '赵红', '2025-01-03T09:00:00Z', '打印完成，质检合格'),
+        previousStatus: '待打印',
+      },
+    ],
+  },
+  {
+    id: 'seed11',
+    name: '孙强',
+    company: '数字世界',
+    attendeeType: '观众',
+    badgeColor: '绿色',
+    printBatch: 'B1',
+    status: '待领取',
+    notes: '',
+    responsiblePerson: '',
+    createdAt: '2025-01-01T00:00:00Z',
+    updatedAt: '2025-01-03T10:00:00Z',
+    handover: null,
+    currentNode: '待领取',
+    progressLogs: [
+      createSeedLog('seed11', 'create', '新增', '待设计', '李明', '2025-01-01T00:00:00Z', '线上报名'),
+      {
+        ...createSeedLog('seed11', 'update_status', '设计', '待打印', '李明', '2025-01-01T03:00:00Z'),
+        previousStatus: '待设计',
+      },
+      {
+        ...createSeedLog('seed11', 'update_status', '打印', '待领取', '赵红', '2025-01-03T10:00:00Z'),
+        previousStatus: '待打印',
+      },
+    ],
+  },
+  {
+    id: 'seed12',
+    name: '钱敏',
+    company: '未来通讯',
+    attendeeType: '媒体',
+    badgeColor: '紫色',
+    printBatch: 'A2',
+    status: '待领取',
+    notes: '',
+    responsiblePerson: '赵红',
+    createdAt: '2025-01-01T00:00:00Z',
+    updatedAt: '2025-01-03T11:00:00Z',
+    handover: null,
+    currentNode: '待领取',
+    progressLogs: [
+      createSeedLog('seed12', 'create', '新增', '待设计', '赵红', '2025-01-01T00:00:00Z', '媒体名单'),
+      {
+        ...createSeedLog('seed12', 'update_status', '设计', '待打印', '赵红', '2025-01-01T04:00:00Z'),
+        previousStatus: '待设计',
+      },
+      {
+        ...createSeedLog('seed12', 'update_status', '打印', '待领取', '李明', '2025-01-03T11:00:00Z'),
+        previousStatus: '待打印',
+      },
+    ],
+  },
+  {
+    id: 'seed13',
+    name: '黄磊',
+    company: '创新科技',
+    attendeeType: '参展商',
+    badgeColor: '蓝色',
+    printBatch: 'B1',
+    status: '待领取',
+    notes: '',
+    responsiblePerson: '李明',
+    createdAt: '2025-01-01T00:00:00Z',
+    updatedAt: '2025-01-03T12:00:00Z',
+    handover: null,
+    currentNode: '待领取',
+    progressLogs: [
+      createSeedLog('seed13', 'create', '新增', '待设计', '李明', '2025-01-01T00:00:00Z'),
+      {
+        ...createSeedLog('seed13', 'update_status', '设计', '待打印', '李明', '2025-01-01T05:00:00Z'),
+        previousStatus: '待设计',
+      },
+      {
+        ...createSeedLog('seed13', 'update_status', '打印', '待领取', '赵红', '2025-01-03T12:00:00Z'),
+        previousStatus: '待打印',
+      },
+    ],
+  },
+  {
+    id: 'seed14',
+    name: '林娜',
+    company: '阳光志愿者',
+    attendeeType: '志愿者',
+    badgeColor: '橙色',
+    printBatch: '',
+    status: '待领取',
+    notes: '',
+    responsiblePerson: '李明',
+    createdAt: '2025-01-01T00:00:00Z',
+    updatedAt: '2025-01-03T13:00:00Z',
+    handover: null,
+    currentNode: '待领取',
+    progressLogs: [
+      createSeedLog('seed14', 'create', '新增', '待设计', '李明', '2025-01-01T00:00:00Z', '志愿者招募'),
+      {
+        ...createSeedLog('seed14', 'update_status', '设计', '待打印', '李明', '2025-01-01T06:00:00Z'),
+        previousStatus: '待设计',
+      },
+      {
+        ...createSeedLog('seed14', 'update_status', '打印', '待领取', '李明', '2025-01-03T13:00:00Z'),
+        previousStatus: '待打印',
+      },
+    ],
+  },
+  {
+    id: 'seed15',
+    name: '周杰',
+    company: '盛世展览',
+    attendeeType: '参展商',
+    badgeColor: '蓝色',
+    printBatch: 'A1',
+    status: '待领取',
+    notes: '',
+    responsiblePerson: '赵红',
+    createdAt: '2025-01-01T00:00:00Z',
+    updatedAt: '2025-01-03T14:00:00Z',
+    handover: null,
+    currentNode: '待领取',
+    progressLogs: [
+      createSeedLog('seed15', 'create', '新增', '待设计', '赵红', '2025-01-01T00:00:00Z'),
+      {
+        ...createSeedLog('seed15', 'update_status', '设计', '待打印', '赵红', '2025-01-01T07:00:00Z'),
+        previousStatus: '待设计',
+      },
+      {
+        ...createSeedLog('seed15', 'update_status', '打印', '待领取', '李明', '2025-01-03T14:00:00Z'),
+        previousStatus: '待打印',
+      },
+    ],
+  },
+  {
+    id: 'seed16',
+    name: '吴芳',
+    company: '光速网络',
+    attendeeType: '参展商',
+    badgeColor: '蓝色',
+    printBatch: 'B1',
+    status: '待领取',
+    notes: '',
+    responsiblePerson: '赵红',
+    createdAt: '2025-01-01T00:00:00Z',
+    updatedAt: '2025-01-03T15:00:00Z',
+    handover: null,
+    currentNode: '待领取',
+    progressLogs: [
+      createSeedLog('seed16', 'create', '新增', '待设计', '赵红', '2025-01-01T00:00:00Z'),
+      {
+        ...createSeedLog('seed16', 'update_status', '设计', '待打印', '赵红', '2025-01-01T08:00:00Z'),
+        previousStatus: '待设计',
+      },
+      {
+        ...createSeedLog('seed16', 'update_status', '打印', '待领取', '赵红', '2025-01-03T15:00:00Z'),
+        previousStatus: '待打印',
+      },
+    ],
+  },
+  {
+    id: 'seed17',
+    name: '郑伟',
+    company: '华科技术',
+    attendeeType: '工作人员',
+    badgeColor: '黄色',
+    printBatch: 'A2',
+    status: '待领取',
+    notes: '',
+    responsiblePerson: '',
+    createdAt: '2025-01-01T00:00:00Z',
+    updatedAt: '2025-01-03T16:00:00Z',
+    handover: null,
+    currentNode: '待领取',
+    progressLogs: [
+      createSeedLog('seed17', 'create', '新增', '待设计', '李明', '2025-01-01T00:00:00Z', '工作人员名单'),
+      {
+        ...createSeedLog('seed17', 'update_status', '设计', '待打印', '李明', '2025-01-01T09:00:00Z'),
+        previousStatus: '待设计',
+      },
+      {
+        ...createSeedLog('seed17', 'update_status', '打印', '待领取', '赵红', '2025-01-03T16:00:00Z'),
+        previousStatus: '待打印',
+      },
+    ],
+  },
+  {
+    id: 'seed18',
+    name: '钱丽',
+    company: '数字未来',
+    attendeeType: '观众',
+    badgeColor: '绿色',
+    printBatch: 'B1',
+    status: '待领取',
+    notes: '',
+    responsiblePerson: '李明',
+    createdAt: '2025-01-01T00:00:00Z',
+    updatedAt: '2025-01-03T17:00:00Z',
+    handover: null,
+    currentNode: '待领取',
+    progressLogs: [
+      createSeedLog('seed18', 'create', '新增', '待设计', '李明', '2025-01-01T00:00:00Z', '线上报名'),
+      {
+        ...createSeedLog('seed18', 'update_status', '设计', '待打印', '李明', '2025-01-01T10:00:00Z'),
+        previousStatus: '待设计',
+      },
+      {
+        ...createSeedLog('seed18', 'update_status', '打印', '待领取', '李明', '2025-01-03T17:00:00Z'),
+        previousStatus: '待打印',
+      },
+    ],
+  },
 ]
 
 function migrateRecord(record: any): BadgeRecord {
@@ -1058,6 +1318,106 @@ export const useBadgeStore = defineStore('badge', () => {
     })
   }
 
+  const pendingRecords = computed(() => {
+    return records.value.filter((r) => r.status === '待领取')
+  })
+
+  const verificationStats = computed(() => {
+    const total = records.value.length
+    const pending = records.value.filter((r) => r.status === '待领取').length
+    const collected = records.value.filter((r) => r.status === '已领取').length
+    const redo = records.value.filter((r) => r.status === '需重做').length
+    const pendingWithIssues = records.value.filter(
+      (r) => r.status === '待领取' && (!r.printBatch || !r.responsiblePerson),
+    ).length
+    return { total, pending, collected, redo, pendingWithIssues }
+  })
+
+  function searchVerificationRecords(params: {
+    name?: string
+    company?: string
+    printBatch?: string
+    badgeColor?: string
+  }) {
+    return records.value.filter((r) => {
+      if (params.name && !r.name.toLowerCase().includes(params.name.toLowerCase())) {
+        return false
+      }
+      if (params.company && !r.company.toLowerCase().includes(params.company.toLowerCase())) {
+        return false
+      }
+      if (params.printBatch && r.printBatch !== params.printBatch) {
+        return false
+      }
+      if (params.badgeColor && r.badgeColor !== params.badgeColor) {
+        return false
+      }
+      return true
+    })
+  }
+
+  function getRecordAlerts(record: BadgeRecord) {
+    const alerts: { type: 'error' | 'warning' | 'success'; message: string }[] = []
+
+    if (record.status === '已领取') {
+      alerts.push({
+        type: 'success',
+        message: record.handover
+          ? `已由 ${record.handover.receiverName} 于 ${formatDateTime(record.handover.receivedAt)} 领取`
+          : '状态异常：已领取但无交接信息',
+      })
+    }
+
+    if (record.status === '需重做') {
+      const redoLog = [...record.progressLogs]
+        .sort((a, b) => new Date(b.operatedAt).getTime() - new Date(a.operatedAt).getTime())
+        .find((l) => l.nodeType === '需重做')
+      alerts.push({
+        type: 'error',
+        message: `需重做：${redoLog?.reason || '信息有误，需重新制作'}`,
+      })
+    }
+
+    if (record.status === '待领取' && !record.printBatch) {
+      alerts.push({
+        type: 'warning',
+        message: '信息不完整：未分配打印批次',
+      })
+    }
+
+    if (record.status === '待领取' && !record.responsiblePerson) {
+      alerts.push({
+        type: 'warning',
+        message: '信息不完整：未指定负责人',
+      })
+    }
+
+    if (record.status !== '已领取' && record.handover) {
+      alerts.push({
+        type: 'warning',
+        message: '状态异常：未领取但已填写交接信息',
+      })
+    }
+
+    if (record.status === '已领取' && !record.handover) {
+      alerts.push({
+        type: 'error',
+        message: '状态异常：已领取但缺少交接信息',
+      })
+    }
+
+    return alerts
+  }
+
+  function getLatestSummary(record: BadgeRecord) {
+    const logs = [...record.progressLogs].sort(
+      (a, b) => new Date(b.operatedAt).getTime() - new Date(a.operatedAt).getTime(),
+    )
+    if (logs.length === 0) return '暂无处理记录'
+    const latest = logs[0]
+    return `${latest.operator} · ${formatDateTime(latest.operatedAt)} · ${latest.operationLabel}${latest.reason ? ' · ' + latest.reason : ''}`
+  }
+
   return {
     records,
     filter,
@@ -1074,6 +1434,8 @@ export const useBadgeStore = defineStore('badge', () => {
     stats,
     checks,
     issueCount,
+    pendingRecords,
+    verificationStats,
     getRecordById,
     addRecord,
     updateRecord,
@@ -1090,6 +1452,9 @@ export const useBadgeStore = defineStore('badge', () => {
     clearLedgerFilter,
     focusOnIssue,
     getBatchStats,
+    searchVerificationRecords,
+    getRecordAlerts,
+    getLatestSummary,
     formatDateTime,
     formatDate,
   }

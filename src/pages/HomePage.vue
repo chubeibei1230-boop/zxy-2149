@@ -13,8 +13,10 @@ import HandoverModal from '@/components/HandoverModal.vue'
 import HandoverDetailModal from '@/components/HandoverDetailModal.vue'
 import ProgressDetailModal from '@/components/ProgressDetailModal.vue'
 import LedgerPanel from '@/components/LedgerPanel.vue'
-import { Plus, LayoutGrid, Package, Search, Handshake, GitBranch, BookOpen } from 'lucide-vue-next'
+import { useRouter } from 'vue-router'
+import { Plus, LayoutGrid, Package, Search, Handshake, GitBranch, BookOpen, QrCode } from 'lucide-vue-next'
 
+const router = useRouter()
 const store = useBadgeStore()
 const { filter } = toRefs(store)
 
@@ -180,6 +182,13 @@ function handleLedgerViewRecord(id: string) {
           >
             <BookOpen class="w-4 h-4" />
             操作台账
+          </button>
+          <button
+            class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+            @click="router.push('/verification')"
+          >
+            <QrCode class="w-4 h-4" />
+            现场核销
           </button>
           <div class="w-px h-6 bg-slate-200 mx-1" />
           <button class="btn-primary flex items-center gap-1.5" @click="handleAdd">
